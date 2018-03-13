@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="GLUtilities.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="Window.cpp" />
+    <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="OBJLoader.cpp" />
+    <ClCompile Include="StringUtilities.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="GLUtilities.h" />
+    <ClInclude Include="Shader.h" />
+    <ClInclude Include="Window.h" />
+    <ClInclude Include="Camera.h" />
+    <ClInclude Include="OBJLoader.h" />
+    <ClInclude Include="StringUtilities.h" />
+    <ClInclude Include="Mesh.h" />
+  </ItemGroup>
+</Project>
