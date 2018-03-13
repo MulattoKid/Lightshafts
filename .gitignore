@@ -19,8 +19,8 @@ bld/
 [Bb]in/
 [Oo]bj/
 [Ll]og/
-Lightshafts/x64/Debug
-Lightshafts/x64/Release
+Lightshafts/Lightshafts/x64/Debug
+Lightshafts/Lightshafts/x64/Release
 
 # Visual Studio 2015 cache/options directory
 .vs/
