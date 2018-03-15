@@ -17,5 +17,6 @@
     <ClInclude Include="OBJLoader.h" />
     <ClInclude Include="StringUtilities.h" />
     <ClInclude Include="Mesh.h" />
+    <ClInclude Include="Light.h" />
   </ItemGroup>
 </Project>

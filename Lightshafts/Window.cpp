@@ -5,8 +5,11 @@
 #include <time.h>
 #include "Window.h"
 
-#define NEAR_PLANE 0.1f
+#define NEAR_PLANE 0.01f
 #define FAR_PLANE 1000.0f
+#define SHADOW_WIDTH 1024
+#define SHADOW_HEIGHT 1024
+#define DEFAULT_FRAMEBUFFER 0
 
 void Window::Create(const std::string& name, int width, int height)
 {
@@ -45,8 +48,27 @@ void Window::Create(const std::string& name, int width, int height)
 	printf("***  OpenGL Version: %s  ***\n", glGetString(GL_VERSION));
 }
 
+void Window::InitLights()
+{
+	//Light 0
+	lights[0].position = glm::vec3(-2.0f, 2.0f, 0.0f);
+	lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
+	lights[0].vp = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+}
+
 void Window::Init()
 {
+	//Camera
+	camera = Camera(glm::vec3(0.0f, 2.0f, 10.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.25f, true);
+	camera_perspective_matrix = glm::perspective(glm::radians(70.0f), (float)screen_width / screen_height, NEAR_PLANE, FAR_PLANE);
+
+	//Light
+	InitLights();
+	light_perspective_matrix = glm::ortho(-10.0f, 10.0f, -1.0f, 1.0f, NEAR_PLANE, FAR_PLANE);
+
+	//Other
+	total_time = 0.0f, frame_time = 0.0f;
+
 	//Setup render state
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
@@ -59,24 +81,31 @@ void Window::Init()
 	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(UBOData), NULL, GL_DYNAMIC_DRAW);
 	shader_plain_normal.Init("assets/shaders/plain_normal.vert", "assets/shaders/plain_normal.frag");
+	shader_shadow.Init("assets/shaders/shadow.vert", "assets/shaders/shadow.frag");
 
+	//Texture uniforms
+	u_texture_shadow = glGetUniformLocation(shader_plain_normal.shader_program, "shadow_sampler");
+
+	//UBO
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
 	u_shader_plain_normal_ubo = glGetUniformBlockIndex(shader_plain_normal.shader_program, "UBOData");
 	glUniformBlockBinding(shader_plain_normal.shader_program, u_shader_plain_normal_ubo, 0);
+	u_shader_shadow_ubo = glGetUniformBlockIndex(shader_shadow.shader_program, "UBOData");
+	glUniformBlockBinding(shader_shadow.shader_program, u_shader_shadow_ubo, 0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
 
-	//Meshes
+	//Plane
 	const unsigned int plane_num_vertices = 24;
 	const float plane_vertices[plane_num_vertices] = {
-		-100.0f, -10.0f, -100.0f,	+0.0f, +1.0f, +0.0f,
-		-100.0f, -10.0f, +100.0f,	+0.0f, +1.0f, +0.0f,
-		+100.0f, -10.0f, +100.0f,	+0.0f, +1.0f, +0.0f,
-		+100.0f, -10.0f, -100.0f,	+0.0f, +1.0f, +0.0f
+		-100.0f, -5.0f, -100.0f,	+0.0f, +1.0f, +0.0f,
+		-100.0f, -5.0f, +100.0f,	+0.0f, +1.0f, +0.0f,
+		+100.0f, -5.0f, +100.0f,	+0.0f, +1.0f, +0.0f,
+		+100.0f, -5.0f, -100.0f,	+0.0f, +1.0f, +0.0f
 	};
 	const unsigned int plane_num_indices = 6;
 	const unsigned int plane_indices[plane_num_indices] = { 0, 1, 2, 2, 3, 0 };
 	LoadGeometry(&plane_vao, plane_vertices, plane_num_vertices, plane_indices, plane_num_indices, &plane_ibo, VertexDataLayout::VERTEX_NORMAL);
-
+	//Cube
 	const unsigned int cube_num_vertices = 144;
 	const float cube_vertices[cube_num_vertices] = {
 		//Front
@@ -121,10 +150,35 @@ void Window::Init()
 	};
 	LoadGeometry(&cube_vao, cube_vertices, cube_num_vertices, cube_indices, cube_num_indices, &cube_ibo, VertexDataLayout::VERTEX_NORMAL);
 
-	//General stuff
-	camera = Camera(glm::vec3(0.0f, 0.0f, 3.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.25f);
-	perspective_matrix = glm::perspective(glm::radians(70.0f), (float)screen_width / screen_height, NEAR_PLANE, FAR_PLANE);
-	total_time = 0.0f, frame_time = 0.0f;
+	//Shadow framebuffer and texture
+	glGenTextures(1, &texture_shadow);
+	glBindTexture(GL_TEXTURE_2D, texture_shadow);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); //Duh...not repeta idiot...
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glGenFramebuffers(1, &fbo_shadow);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo_shadow);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texture_shadow, 0);
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
+
+	//Test quad
+	shader_test.Init("assets/shaders/test.vert", "assets/shaders/test.frag");
+	u_test_quad_texture = glGetUniformLocation(shader_test.shader_program, "sampler");
+	const unsigned int test_quad_num_vertices = 20;
+	const float test_quad_vertices[test_quad_num_vertices] = {
+		-1.0f, +1.0f, +0.0f,	+0.0f, +1.0f,
+		-1.0f, -1.0f, +0.0f,	+0.0f, +0.0f,
+		+1.0f, -1.0f, +0.0f,	+1.0f, +0.0f,
+		+1.0f, +1.0f, +1.0f,	+1.0f, +1.0f
+	};
+	const unsigned int test_quad_num_indices = 6;
+	const unsigned int test_quad_indices[test_quad_num_indices] = { 0, 1, 2, 2, 3, 0 };
+	LoadGeometry(&test_quad_vao, test_quad_vertices, test_quad_num_vertices, test_quad_indices, test_quad_num_indices, &test_quad_ibo, VertexDataLayout::VERTEX_UV);
 }
 
 void Window::Update()
@@ -133,27 +187,35 @@ void Window::Update()
 	CheckForEvents();
 
 	//Updates
-	glm::mat4 view_matrix = camera.WorldToViewMatrix();
-	glm::mat4 vp = perspective_matrix * view_matrix;
+	glm::mat4 camera_view_matrix = camera.WorldToViewMatrix();
+	glm::mat4 camera_vp = camera_perspective_matrix * camera_view_matrix;
 	//Update UBO
 	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
 	UBOData* ptr = (UBOData*)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
 	if (ptr)
 	{
-		memcpy(&ptr->vp, &vp[0][0], 16 * sizeof(float));
-		//memcpy(&ptr->light_vp, ubo_data.light_vp, 16 * sizeof(float));
-		//memcpy(&ptr->cam_position, ubo_data.cam_position, 4 * sizeof(float));
-		//memcpy(&ptr->light_position, ubo_data.light_position, 4 * sizeof(float));
+		//General stuff
+		memcpy(&ptr->camera_vp, &camera_vp[0][0], 16 * sizeof(float));
+		memcpy(&ptr->camera_pos, &glm::vec4(camera.position, 0.0f)[0], 4 * sizeof(float));
+		memcpy(&ptr->camera_dir, &glm::vec4(camera.view_direction, 0.0f)[0], 4 * sizeof(float));
+		//Light 0
+		memcpy(&ptr->light_pos_0, &glm::vec4(lights[0].position, 0.0f)[0], 4 * sizeof(float));
+		memcpy(&ptr->light_color_0, &glm::vec4(lights[0].color, 0.0f)[0], 4 * sizeof(float));
+		memcpy(&ptr->light_vp_0, &lights[0].vp[0][0], 16 * sizeof(float));
 		glUnmapBuffer(GL_UNIFORM_BUFFER);
 	}
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-	//Clear default framebuffer
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	//Render
+	////////////////////////////////////////
+	///////////////RENDER///////////////////
+	////////////////////////////////////////
+	//Shadow pass
+	glCullFace(GL_FRONT);
+	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo_shadow);
+	glClear(GL_DEPTH_BUFFER_BIT);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
-	glUseProgram(shader_plain_normal.shader_program);
+	glUseProgram(shader_shadow.shader_program);
 	glBindVertexArray(plane_vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, plane_ibo);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -164,9 +226,45 @@ void Window::Update()
 	glBindVertexArray(0);
 	glUseProgram(0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
+	glViewport(0, 0, screen_width, screen_height);
+	glCullFace(GL_BACK);
+
+	//Regular pass
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
+	glUseProgram(shader_plain_normal.shader_program);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture_shadow);
+	glUniform1i(u_texture_shadow, 0);
+	glBindVertexArray(plane_vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, plane_ibo);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	glBindVertexArray(cube_vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube_ibo);
+	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+	glUseProgram(0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
+
+	//Test quad
+	/*glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glUseProgram(shader_test.shader_program);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture_shadow);
+	glUniform1i(u_test_quad_texture, 0);
+	glBindVertexArray(test_quad_vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, test_quad_ibo);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+	glUseProgram(0);*/
 	
+	//Swap window
 	SDL_GL_SwapWindow(window);
 
+	//Frame end
 	auto end = std::chrono::steady_clock::now();
 	long long frame_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count(); //ms
 	frame_time = (float)frame_time_ms / 1000.0f; //s

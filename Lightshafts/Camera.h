@@ -8,7 +8,7 @@ struct Camera
 {
 	//Fucntions
 	Camera();
-	Camera(glm::vec3 position, glm::vec3 viewDirection, glm::vec3 upVector, float movementSpeed);
+	Camera(glm::vec3 position, glm::vec3 viewDirection, glm::vec3 upVector, float movementSpeed, bool look_at_center);
 	void UpdatePosition(SDL_Keycode key);
 	void UpdateViewDirection(SDL_Event e);
 	glm::mat4 WorldToViewMatrix();

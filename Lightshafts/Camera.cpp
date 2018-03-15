@@ -4,10 +4,17 @@
 Camera::Camera() : position(0.0f, 0.0f, 2.0f), view_direction(0.0f, 0.0f, -1.0f), up(0.0f, 1.0f, 0.0f), movement_speed(0.25f)
 {}
 
-Camera::Camera(glm::vec3 position, glm::vec3 view_direction, glm::vec3 up, float movement_speed)
+Camera::Camera(glm::vec3 position, glm::vec3 view_direction, glm::vec3 up, float movement_speed, bool look_at_center)
 {
 	this->position = position;
-	this->view_direction = glm::normalize(view_direction);
+	if (look_at_center)
+	{
+		this->view_direction = glm::normalize(glm::vec3(0.0f) - position);
+	}
+	else
+	{
+		this->view_direction = glm::normalize(view_direction);
+	}
 	this->up = glm::normalize(up);
 	this->movement_speed = movement_speed;
 }

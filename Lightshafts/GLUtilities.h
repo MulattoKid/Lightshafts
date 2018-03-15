@@ -6,10 +6,12 @@
 
 struct UBOData
 {
-	float vp[16];
-	//float light_vp[16];
-	//float cam_position[4];
-	//float light_position[4];
+	float camera_vp[16];
+	float camera_pos[4];
+	float camera_dir[4];
+	float light_pos_0[4];
+	float light_color_0[4];
+	float light_vp_0[16];
 };
 
 enum VertexDataLayout
