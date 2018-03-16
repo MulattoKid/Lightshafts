@@ -37,6 +37,14 @@
     <ClInclude Include="StringUtilities.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="assets\shaders\lightshaft.frag" />
+    <None Include="assets\shaders\lightshaft.vert" />
+    <None Include="assets\shaders\quad.frag" />
+    <None Include="assets\shaders\quad.vert" />
+    <None Include="assets\shaders\shadow.frag" />
+    <None Include="assets\shaders\shadow.vert" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{FD2C9164-D8AF-4FD1-95F6-3AA2946B48B6}</ProjectGuid>

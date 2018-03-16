@@ -4,7 +4,9 @@ in layout(location=0) vec3 position;
 
 layout (std140) uniform UBOData
 {
+	vec4 viewport;
     mat4 camera_vp;
+	mat4 camera_to_world;
     vec4 camera_pos;
     vec4 camera_dir;
     vec4 light_pos_0;

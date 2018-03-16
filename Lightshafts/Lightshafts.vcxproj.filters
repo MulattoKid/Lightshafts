@@ -19,4 +19,29 @@
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="Light.h" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="assets\shaders\shadow.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="assets\shaders\shadow.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="assets\shaders\lightshaft.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="assets\shaders\lightshaft.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="assets\shaders\quad.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="assets\shaders\quad.vert">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{3dc36a6a-d2bf-4881-97e7-85a2e88d60c5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
 </Project>

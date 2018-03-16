@@ -5,7 +5,7 @@
 #include <time.h>
 #include "Window.h"
 
-#define NEAR_PLANE 0.01f
+#define NEAR_PLANE 0.1f
 #define FAR_PLANE 1000.0f
 #define SHADOW_WIDTH 1024
 #define SHADOW_HEIGHT 1024
@@ -77,30 +77,33 @@ void Window::Init()
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
 	//Shaders
+	shader_shadow.Init("assets/shaders/shadow.vert", "assets/shaders/shadow.frag");
+	shader_lightshaft.Init("assets/shaders/lightshaft.vert", "assets/shaders/lightshaft.frag");
+	shader_quad.Init("assets/shaders/quad.vert", "assets/shaders/quad.frag");
+
+	//Texture uniforms
+	u_gbuffer_texture_shadow = glGetUniformLocation(shader_lightshaft.shader_program, "shadow_sampler");
+
+	//UBO
 	glGenBuffers(1, &ubo);
 	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(UBOData), NULL, GL_DYNAMIC_DRAW);
-	shader_plain_normal.Init("assets/shaders/plain_normal.vert", "assets/shaders/plain_normal.frag");
-	shader_shadow.Init("assets/shaders/shadow.vert", "assets/shaders/shadow.frag");
-
-	//Texture uniforms
-	u_texture_shadow = glGetUniformLocation(shader_plain_normal.shader_program, "shadow_sampler");
-
-	//UBO
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
-	u_shader_plain_normal_ubo = glGetUniformBlockIndex(shader_plain_normal.shader_program, "UBOData");
-	glUniformBlockBinding(shader_plain_normal.shader_program, u_shader_plain_normal_ubo, 0);
 	u_shader_shadow_ubo = glGetUniformBlockIndex(shader_shadow.shader_program, "UBOData");
 	glUniformBlockBinding(shader_shadow.shader_program, u_shader_shadow_ubo, 0);
+	u_shader_lightshaft_ubo = glGetUniformBlockIndex(shader_lightshaft.shader_program, "UBOData");
+	glUniformBlockBinding(shader_lightshaft.shader_program, u_shader_lightshaft_ubo, 0);
+	u_shader_quad_ubo = glGetUniformBlockIndex(shader_quad.shader_program, "UBOData");
+	glUniformBlockBinding(shader_quad.shader_program, u_shader_quad_ubo, 0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
 
 	//Plane
 	const unsigned int plane_num_vertices = 24;
 	const float plane_vertices[plane_num_vertices] = {
-		-100.0f, -5.0f, -100.0f,	+0.0f, +1.0f, +0.0f,
-		-100.0f, -5.0f, +100.0f,	+0.0f, +1.0f, +0.0f,
-		+100.0f, -5.0f, +100.0f,	+0.0f, +1.0f, +0.0f,
-		+100.0f, -5.0f, -100.0f,	+0.0f, +1.0f, +0.0f
+		-100.0f, -4.0f, -100.0f,	+0.0f, +1.0f, +0.0f,
+		-100.0f, -4.0f, +100.0f,	+0.0f, +1.0f, +0.0f,
+		+100.0f, -4.0f, +100.0f,	+0.0f, +1.0f, +0.0f,
+		+100.0f, -4.0f, -100.0f,	+0.0f, +1.0f, +0.0f
 	};
 	const unsigned int plane_num_indices = 6;
 	const unsigned int plane_indices[plane_num_indices] = { 0, 1, 2, 2, 3, 0 };
@@ -155,7 +158,7 @@ void Window::Init()
 	glBindTexture(GL_TEXTURE_2D, texture_shadow);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); //Duh...not repeta idiot...
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 	glGenFramebuffers(1, &fbo_shadow);
@@ -167,18 +170,14 @@ void Window::Init()
 	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
 
 	//Test quad
-	shader_test.Init("assets/shaders/test.vert", "assets/shaders/test.frag");
-	u_test_quad_texture = glGetUniformLocation(shader_test.shader_program, "sampler");
-	const unsigned int test_quad_num_vertices = 20;
-	const float test_quad_vertices[test_quad_num_vertices] = {
-		-1.0f, +1.0f, +0.0f,	+0.0f, +1.0f,
-		-1.0f, -1.0f, +0.0f,	+0.0f, +0.0f,
-		+1.0f, -1.0f, +0.0f,	+1.0f, +0.0f,
-		+1.0f, +1.0f, +1.0f,	+1.0f, +1.0f
+	GLfloat quad_vertices[12] = {
+		-1.0f, +1.0f, +0.0f,
+		-1.0f, -1.0f, +0.0f,
+		+1.0f, -1.0f, +0.0f,
+		+1.0f, +1.0f, +0.0
 	};
-	const unsigned int test_quad_num_indices = 6;
-	const unsigned int test_quad_indices[test_quad_num_indices] = { 0, 1, 2, 2, 3, 0 };
-	LoadGeometry(&test_quad_vao, test_quad_vertices, test_quad_num_vertices, test_quad_indices, test_quad_num_indices, &test_quad_ibo, VertexDataLayout::VERTEX_UV);
+	GLuint quad_indices[6] = { 0, 1, 2, 2, 3, 0 };
+	LoadGeometry(&quad_vao, quad_vertices, 12, quad_indices, 6, &quad_ibo, VertexDataLayout::VERTEX);
 }
 
 void Window::Update()
@@ -195,7 +194,12 @@ void Window::Update()
 	if (ptr)
 	{
 		//General stuff
+		GLint viewport[4];
+		glGetIntegerv(GL_VIEWPORT, viewport);
+		float viewportf[4] = { viewport[0], viewport[1], viewport[2], viewport[3] };
+		memcpy(&ptr->viewport, &viewportf[0], 4 * sizeof(float));
 		memcpy(&ptr->camera_vp, &camera_vp[0][0], 16 * sizeof(float));
+		memcpy(&ptr->camera_to_world, &glm::inverse(camera_view_matrix)[0][0], 16 * sizeof(float));
 		memcpy(&ptr->camera_pos, &glm::vec4(camera.position, 0.0f)[0], 4 * sizeof(float));
 		memcpy(&ptr->camera_dir, &glm::vec4(camera.view_direction, 0.0f)[0], 4 * sizeof(float));
 		//Light 0
@@ -230,13 +234,13 @@ void Window::Update()
 	glViewport(0, 0, screen_width, screen_height);
 	glCullFace(GL_BACK);
 
-	//Regular pass
+	//Lightshaft pass
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
-	glUseProgram(shader_plain_normal.shader_program);
+	glUseProgram(shader_lightshaft.shader_program);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture_shadow);
-	glUniform1i(u_texture_shadow, 0);
+	glUniform1i(u_gbuffer_texture_shadow, 0);
 	glBindVertexArray(plane_vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, plane_ibo);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -250,17 +254,16 @@ void Window::Update()
 
 	//Test quad
 	/*glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glUseProgram(shader_test.shader_program);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texture_shadow);
-	glUniform1i(u_test_quad_texture, 0);
-	glBindVertexArray(test_quad_vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, test_quad_ibo);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
+	glUseProgram(shader_quad.shader_program);
+	glBindVertexArray(quad_vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
-	glUseProgram(0);*/
-	
+	glUseProgram(0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);*/
+
 	//Swap window
 	SDL_GL_SwapWindow(window);
 
@@ -269,6 +272,7 @@ void Window::Update()
 	long long frame_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count(); //ms
 	frame_time = (float)frame_time_ms / 1000.0f; //s
 	total_time += frame_time;
+	//printf("%i\n", frame_time_ms);
 }
 
 void Window::CheckForEvents()

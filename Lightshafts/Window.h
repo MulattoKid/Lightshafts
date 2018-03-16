@@ -38,9 +38,9 @@ struct Window
 
 	//Shaders
 	GLuint ubo;
-	Shader shader_plain_normal, shader_shadow;
-	GLuint u_shader_plain_normal_ubo, u_shader_shadow_ubo;
-	GLuint u_texture_shadow;
+	Shader shader_shadow, shader_lightshaft;
+	GLuint u_shader_shadow_ubo, u_shader_lightshaft_ubo;
+	GLuint u_gbuffer_texture_shadow;
 
 	//Meshes
 	GLuint plane_vao, plane_ibo;
@@ -50,7 +50,7 @@ struct Window
 	GLuint fbo_shadow, texture_shadow;
 
 	//Test quad
-	Shader shader_test;
-	GLuint u_test_quad_texture;
-	GLuint test_quad_vao, test_quad_ibo;
+	Shader shader_quad;
+	GLuint quad_vao, quad_ibo;
+	GLuint u_shader_quad_ubo;
 };
