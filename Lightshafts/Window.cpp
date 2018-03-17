@@ -78,11 +78,9 @@ void Window::Init()
 
 	//Shaders
 	shader_shadow.Init("assets/shaders/shadow.vert", "assets/shaders/shadow.frag");
+	shader_gbuffer.Init("assets/shaders/gbuffer.vert", "assets/shaders/gbuffer.frag");
 	shader_lightshaft.Init("assets/shaders/lightshaft.vert", "assets/shaders/lightshaft.frag");
 	shader_quad.Init("assets/shaders/quad.vert", "assets/shaders/quad.frag");
-
-	//Texture uniforms
-	u_gbuffer_texture_shadow = glGetUniformLocation(shader_lightshaft.shader_program, "shadow_sampler");
 
 	//UBO
 	glGenBuffers(1, &ubo);
@@ -91,11 +89,19 @@ void Window::Init()
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
 	u_shader_shadow_ubo = glGetUniformBlockIndex(shader_shadow.shader_program, "UBOData");
 	glUniformBlockBinding(shader_shadow.shader_program, u_shader_shadow_ubo, 0);
+	u_shader_gbuffer_ubo = glGetUniformBlockIndex(shader_gbuffer.shader_program, "UBOData");
+	glUniformBlockBinding(shader_gbuffer.shader_program, u_shader_gbuffer_ubo, 0);
 	u_shader_lightshaft_ubo = glGetUniformBlockIndex(shader_lightshaft.shader_program, "UBOData");
 	glUniformBlockBinding(shader_lightshaft.shader_program, u_shader_lightshaft_ubo, 0);
 	u_shader_quad_ubo = glGetUniformBlockIndex(shader_quad.shader_program, "UBOData");
 	glUniformBlockBinding(shader_quad.shader_program, u_shader_quad_ubo, 0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
+
+	//Texture uniforms
+	u_gbuffer_texture_shadow = glGetUniformLocation(shader_gbuffer.shader_program, "shadow_sampler");
+	u_lightshaft_texture_shadow = glGetUniformLocation(shader_lightshaft.shader_program, "shadow_sampler");
+	u_lightshaft_texture_color = glGetUniformLocation(shader_lightshaft.shader_program, "color_sampler");
+	u_lightshaft_texture_position = glGetUniformLocation(shader_lightshaft.shader_program, "position_sampler");
 
 	//Plane
 	const unsigned int plane_num_vertices = 24;
@@ -169,15 +175,45 @@ void Window::Init()
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
 
+	//GBuffer
+	glGenTextures(1, &texture_depth);
+	glBindTexture(GL_TEXTURE_2D, texture_depth);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, screen_width, screen_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+	glGenTextures(1, &texture_color);
+	glBindTexture(GL_TEXTURE_2D, texture_color);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, screen_width, screen_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glGenTextures(1, &texture_position);
+	glBindTexture(GL_TEXTURE_2D, texture_position);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screen_width, screen_height, 0, GL_RGB, GL_FLOAT, NULL);
+	glGenFramebuffers(1, &fbo_gbuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo_gbuffer);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texture_depth, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_color, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, texture_position, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
+
 	//Test quad
-	GLfloat quad_vertices[12] = {
-		-1.0f, +1.0f, +0.0f,
-		-1.0f, -1.0f, +0.0f,
-		+1.0f, -1.0f, +0.0f,
-		+1.0f, +1.0f, +0.0
+	GLfloat quad_vertices[20] = {
+		-1.0f, +1.0f, +0.0f,	+0.0f, +1.0f,
+		-1.0f, -1.0f, +0.0f,	+0.0f, +0.0f,
+		+1.0f, -1.0f, +0.0f,	+1.0f, +0.0f,
+		+1.0f, +1.0f, +0.0f,	+1.0f, +1.0f
 	};
 	GLuint quad_indices[6] = { 0, 1, 2, 2, 3, 0 };
-	LoadGeometry(&quad_vao, quad_vertices, 12, quad_indices, 6, &quad_ibo, VertexDataLayout::VERTEX);
+	LoadGeometry(&quad_vao, quad_vertices, 20, quad_indices, 6, &quad_ibo, VertexDataLayout::VERTEX_UV);
 }
 
 void Window::Update()
@@ -234,10 +270,11 @@ void Window::Update()
 	glViewport(0, 0, screen_width, screen_height);
 	glCullFace(GL_BACK);
 
-	//Lightshaft pass
+	//GBuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo_gbuffer);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
-	glUseProgram(shader_lightshaft.shader_program);
+	glUseProgram(shader_gbuffer.shader_program);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture_shadow);
 	glUniform1i(u_gbuffer_texture_shadow, 0);
@@ -247,6 +284,28 @@ void Window::Update()
 	glBindVertexArray(cube_vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube_ibo);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+	glUseProgram(0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
+
+	//Lightshaft pass
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
+	glUseProgram(shader_lightshaft.shader_program);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture_shadow);
+	glUniform1i(u_lightshaft_texture_shadow, 0);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, texture_color);
+	glUniform1i(u_lightshaft_texture_color, 1);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, texture_position);
+	glUniform1i(u_lightshaft_texture_position, 2);
+	glBindVertexArray(quad_vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 	glUseProgram(0);

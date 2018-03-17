@@ -6,11 +6,11 @@
 #define SPECULAR 0.1f
 #define LIGHT_INTENSITY 1.0f
 
-in vec3 f_position;
-in vec3 f_normal;
-in vec4 f_position_light_space_0;
+in vec2 f_uv;
 
 layout(location=0) uniform sampler2D shadow_sampler;
+layout(location=1) uniform sampler2D color_sampler;
+layout(location=2) uniform sampler2D position_sampler;
 
 layout (std140) uniform UBOData
 {
@@ -77,42 +77,11 @@ vec3 CalculateLightshaft(vec3 ray_pos, vec3 ray_dir, float ray_distance, int num
 	return vec3(contribution / num_samples) * ubo_data.light_color_0;
 }
 
-vec3 CalculateLighting(vec3 camera_pos, vec3 light_pos, vec3 light_color)
-{
-    vec4 albedo = vec4(1.0f, 0.0f, 0.0f, 1.0f);
-    vec3 light_dir = normalize(light_pos - f_position);
-    vec3 reflect_dir = normalize(reflect(-light_dir, f_normal));
-    vec3 view_dir = normalize(camera_pos - f_position);
-
-    //Ambient
-    vec3 ambient_intensity = vec3(AMBIENT);
-
-    //Emissive
-    vec3 emissive_intensity = vec3(1.0f, 1.0f, 1.0f) * EMISSIVE;
-
-    //Diffuse
-    float diffuse = dot(light_dir, f_normal);
-    vec3 diffuse_intensity = vec3(diffuse) * DIFFUSE;
-
-    //Specular
-    float specular = dot(view_dir, reflect_dir);
-    vec3 specular_intensity = vec3(specular) * SPECULAR;
-
-    float in_shadow_light_0 = InShadow(f_position_light_space_0);
-    return vec3(albedo) * (ambient_intensity + emissive_intensity + (1.0f - in_shadow_light_0) * (diffuse_intensity + specular_intensity * vec3(ubo_data.light_color_0)));
-}
-
 void main()
 {
-	vec3 ray_pos = vec3(ubo_data.camera_pos);
+	/*vec3 ray_pos = vec3(ubo_data.camera_pos);
 	vec3 ray_dir = GenerateRay();
 	float ray_distance = 40.0f; //MAX
-	vec3 lightshaft = CalculateLightshaft(ray_pos, ray_dir, ray_distance, 200);
-
-	vec3 lighting_0 = CalculateLighting(vec3(ubo_data.camera_pos), vec3(ubo_data.light_pos_0), vec3(ubo_data.light_color_0));
-    color = vec4(lighting_0 + lightshaft, 1.0f);
-
-	/*vec2 frag_pos_proj = vec2(f_position_light_space_0) * 0.5f + 0.5f; //Range [-1,1] -> [0,1]
-    float light_min_depth = texture(shadow_sampler, frag_pos_proj.xy).r;
-	color = vec4(vec3(LinearizeDepth(light_min_depth)), 1.0f);*/
+	vec3 lightshaft = CalculateLightshaft(ray_pos, ray_dir, ray_distance, 200);*/
+	color = texture(color_sampler, f_uv);
 }

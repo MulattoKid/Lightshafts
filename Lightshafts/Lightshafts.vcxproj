@@ -38,6 +38,8 @@
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="assets\shaders\gbuffer.frag" />
+    <None Include="assets\shaders\gbuffer.vert" />
     <None Include="assets\shaders\lightshaft.frag" />
     <None Include="assets\shaders\lightshaft.vert" />
     <None Include="assets\shaders\quad.frag" />

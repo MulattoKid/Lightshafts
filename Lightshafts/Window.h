@@ -37,10 +37,13 @@ struct Window
 	float total_time, frame_time;
 
 	//Shaders
+	Shader shader_shadow, shader_gbuffer, shader_lightshaft;
+	//UBO
 	GLuint ubo;
-	Shader shader_shadow, shader_lightshaft;
-	GLuint u_shader_shadow_ubo, u_shader_lightshaft_ubo;
+	GLuint u_shader_shadow_ubo, u_shader_gbuffer_ubo, u_shader_lightshaft_ubo;
+	//Uniforms
 	GLuint u_gbuffer_texture_shadow;
+	GLuint u_lightshaft_texture_shadow, u_lightshaft_texture_color, u_lightshaft_texture_position;
 
 	//Meshes
 	GLuint plane_vao, plane_ibo;
@@ -48,6 +51,7 @@ struct Window
 
 	//Framebuffers and textures
 	GLuint fbo_shadow, texture_shadow;
+	GLuint fbo_gbuffer, texture_depth, texture_color, texture_position;
 
 	//Test quad
 	Shader shader_quad;
