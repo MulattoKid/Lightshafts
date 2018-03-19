@@ -37,7 +37,7 @@ struct Window
 	float total_time, frame_time;
 
 	//Shaders
-	Shader shader_shadow, shader_gbuffer, shader_lightshaft;
+	Shader shader_shadow, shader_gbuffer_quad, shader_gbuffer, shader_lightshaft;
 	//UBO
 	GLuint ubo;
 	GLuint u_shader_shadow_ubo, u_shader_gbuffer_ubo, u_shader_lightshaft_ubo;

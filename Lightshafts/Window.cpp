@@ -79,6 +79,7 @@ void Window::Init()
 	//Shaders
 	shader_shadow.Init("assets/shaders/shadow.vert", "assets/shaders/shadow.frag");
 	shader_gbuffer.Init("assets/shaders/gbuffer.vert", "assets/shaders/gbuffer.frag");
+	shader_gbuffer_quad.Init("assets/shaders/gbuffer_quad.vert", "assets/shaders/gbuffer_quad.frag");
 	shader_lightshaft.Init("assets/shaders/lightshaft.vert", "assets/shaders/lightshaft.frag");
 	shader_quad.Init("assets/shaders/quad.vert", "assets/shaders/quad.frag");
 
@@ -276,6 +277,12 @@ void Window::Update()
 	//GBuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_gbuffer);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	//Render a quad with a "maximum" depth so that when sampling the gbuffer texture
+	//we always get a point as the entire screen is always covered by a polygon
+	glUseProgram(shader_gbuffer_quad.shader_program);
+	glBindVertexArray(quad_vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
 	glUseProgram(shader_gbuffer.shader_program);
 	glActiveTexture(GL_TEXTURE0);

@@ -25,7 +25,7 @@ uniform layout (std140) UBOData
 
 out vec4 color;
 
-float LinearizeDepth(float depth)
+/*float LinearizeDepth(float depth)
 {
     float zNear = 0.1;
     float zFar  = 1000.0;
@@ -41,7 +41,7 @@ vec3 GenerateRay()
 	vec3 point_world_space = vec3(ubo_data.camera_to_world * vec4(SS, -1.0f, 1.0f));
 
 	return normalize(point_world_space - ubo_data.camera_pos);
-}
+}*/
 
 float InShadow(vec4 frag_pos_light_space)
 {
@@ -62,28 +62,32 @@ vec3 CalculateLightshaft(vec3 ray_pos, vec3 ray_dir, float ray_distance, int num
 {
 	vec3 current_pos = ray_pos;
 	float step_size = ray_distance / num_samples;
-	float contribution = 0.0f;
+	float step_contribution = 1.0f / num_samples;
+	float accum_fog = 0.0f;
 
 	for (int i = 0; i < num_samples; i++)
 	{
 		current_pos += step_size * ray_dir;
 		vec4 current_pos_light_space_0 = ubo_data.light_vp_0 * vec4(current_pos, 1.0f); //No divide-by-w because orthographics projection
 		float in_shadow = InShadow(current_pos_light_space_0);
-		//if (in_shadow == 0.0f) return vec3(0.5f);
-		contribution += in_shadow;
+		accum_fog += step_contribution * in_shadow;
 	}
 
-	return vec3(contribution / num_samples) * ubo_data.light_color_0;
+	return ubo_data.light_color_0 * accum_fog;
 }
 
 void main()
 {
-	/*vec3 ray_pos = vec3(ubo_data.camera_pos);
-	vec3 ray_dir = GenerateRay();
-	float ray_distance = 40.0f; //MAX
-	vec3 lightshaft = CalculateLightshaft(ray_pos, ray_dir, ray_distance, 200);*/
+	vec3 ray_start = vec3(ubo_data.camera_pos);
+	vec3 ray_end = texture(position_sampler, f_uv).xyz;
+	vec3 ray = ray_end - ray_start;
+	float ray_length = length(ray);
+	vec3 ray_dir = normalize(ray);
+	vec3 fog = CalculateLightshaft(ray_start, ray_dir, ray_length, 10);
+	
+	color = texture(color_sampler, f_uv);
+	color.xyz -= fog;
+	//color = vec4(lightshaft, 1.0f);
 
-	//color = vec4(texture(position_sampler, f_uv).xyz, 1.0f);
-	color = texture(position_sampler, f_uv);
-	//color = texture(color_sampler, f_uv);
+	//color = vec4(vec3(texture(position_sampler, f_uv).z), 1.0f);
 }

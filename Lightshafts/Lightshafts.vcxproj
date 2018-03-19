@@ -40,6 +40,8 @@
   <ItemGroup>
     <None Include="assets\shaders\gbuffer.frag" />
     <None Include="assets\shaders\gbuffer.vert" />
+    <None Include="assets\shaders\gbuffer_quad.frag" />
+    <None Include="assets\shaders\gbuffer_quad.vert" />
     <None Include="assets\shaders\lightshaft.frag" />
     <None Include="assets\shaders\lightshaft.vert" />
     <None Include="assets\shaders\quad.frag" />
