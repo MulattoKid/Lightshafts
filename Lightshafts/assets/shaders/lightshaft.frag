@@ -8,11 +8,10 @@
 
 in vec2 f_uv;
 
-layout(location=0) uniform sampler2D shadow_sampler;
-layout(location=1) uniform sampler2D color_sampler;
-layout(location=2) uniform sampler2D position_sampler;
-
-layout (std140) uniform UBOData
+uniform layout(location=0) sampler2D shadow_sampler;
+uniform layout(location=1) sampler2D color_sampler;
+uniform layout(location=2) sampler2D position_sampler;
+uniform layout (std140) UBOData
 {
 	vec4 viewport;
     mat4 camera_vp;
@@ -83,5 +82,8 @@ void main()
 	vec3 ray_dir = GenerateRay();
 	float ray_distance = 40.0f; //MAX
 	vec3 lightshaft = CalculateLightshaft(ray_pos, ray_dir, ray_distance, 200);*/
-	color = texture(color_sampler, f_uv);
+
+	//color = vec4(texture(position_sampler, f_uv).xyz, 1.0f);
+	color = texture(position_sampler, f_uv);
+	//color = texture(color_sampler, f_uv);
 }

@@ -10,9 +10,8 @@ in vec3 f_position;
 in vec3 f_normal;
 in vec4 f_position_light_space_0;
 
-layout(location=0) uniform sampler2D shadow_sampler;
-
-layout (std140) uniform UBOData
+uniform layout(location=0) sampler2D shadow_sampler;
+uniform layout (std140) UBOData
 {
 	vec4 viewport;
     mat4 camera_vp;
@@ -24,8 +23,8 @@ layout (std140) uniform UBOData
     mat4 light_vp_0;
 } ubo_data;
 
-layout(location=0) out vec4 color;
-layout(location=1) out vec3 position;
+out layout(location=0) vec4 g_color;
+out layout(location=1) vec4 g_position;
 
 float InShadow(vec4 frag_pos_light_space)
 {
@@ -70,6 +69,7 @@ vec3 CalculateLighting(vec3 camera_pos, vec3 light_pos, vec3 light_color)
 void main()
 {
 	vec3 lighting_0 = CalculateLighting(vec3(ubo_data.camera_pos), vec3(ubo_data.light_pos_0), vec3(ubo_data.light_color_0));
-    color = vec4(lighting_0, 1.0f);
-	position = f_position;
+
+    g_color = vec4(lighting_0, 1.0f);
+	g_position = vec4(f_position, 1.0f);
 }
