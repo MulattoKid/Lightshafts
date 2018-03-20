@@ -46,7 +46,7 @@ struct Window
 	GLuint u_lightshaft_texture_shadow, u_lightshaft_texture_color, u_lightshaft_texture_position;
 
 	//Meshes
-	GLuint plane_vao, plane_ibo;
+	GLuint surr_cube_vao, surr_cube_ibo;
 	GLuint cube_vao, cube_ibo;
 
 	//Framebuffers and textures

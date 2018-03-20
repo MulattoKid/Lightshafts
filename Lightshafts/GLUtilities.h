@@ -18,7 +18,7 @@ struct UBOData
 
 enum VertexDataLayout
 {
-	VERTEX, VERTEX_NORMAL, VERTEX_UV, VERTEX_NORMAL_UV
+	VERTEX, VERTEX_NORMAL, VERTEX_UV, VERTEX_NORMAL_UV, VERTEX_NORMAL_COLOR
 };
 
 void LoadTexture(const std::string& file, const int req_comp, bool use_mipmaps, GLint min_filter, GLint mag_filter, GLint wrap_s, GLint wrap_t, GLuint* id);

@@ -25,14 +25,14 @@ uniform layout (std140) UBOData
 
 out vec4 color;
 
-/*float LinearizeDepth(float depth)
+float LinearizeDepth(float depth)
 {
     float zNear = 0.1;
     float zFar  = 1000.0;
     return (2.0 * zNear) / (zFar + zNear - depth * (zFar - zNear));
 }
 
-vec3 GenerateRay()
+/*vec3 GenerateRay()
 {
 	vec2 NDC = gl_FragCoord.xy / ubo_data.viewport.zw;
 	vec2 SS = vec2(NDC * 2.0f - 1.0f);
@@ -45,8 +45,7 @@ vec3 GenerateRay()
 
 float InShadow(vec4 frag_pos_light_space)
 {
-    //vec3 frag_pos_proj = frag_pos_light_space.xyz / frag_pos_light_space.w; //Only needed when using perspective projection
-    vec3 frag_pos_proj = frag_pos_light_space.xyz; //Orthographics projection
+    vec3 frag_pos_proj = frag_pos_light_space.xyz / frag_pos_light_space.w;
     frag_pos_proj = frag_pos_proj * 0.5f + 0.5f; //Range [-1,1] -> [0,1]
     float light_min_depth = texture(shadow_sampler, frag_pos_proj.xy).r;
     float bias = 0.005;
@@ -62,15 +61,15 @@ vec3 CalculateLightshaft(vec3 ray_pos, vec3 ray_dir, float ray_distance, int num
 {
 	vec3 current_pos = ray_pos;
 	float step_size = ray_distance / num_samples;
-	float step_contribution = 1.0f / num_samples;
+	float step_contribution = 0.1f / num_samples;
 	float accum_fog = 0.0f;
 
 	for (int i = 0; i < num_samples; i++)
 	{
 		current_pos += step_size * ray_dir;
-		vec4 current_pos_light_space_0 = ubo_data.light_vp_0 * vec4(current_pos, 1.0f); //No divide-by-w because orthographics projection
+		vec4 current_pos_light_space_0 = ubo_data.light_vp_0 * vec4(current_pos, 1.0f);
 		float in_shadow = InShadow(current_pos_light_space_0);
-		accum_fog += step_contribution * in_shadow;
+		accum_fog += step_contribution * (1.0f - in_shadow);
 	}
 
 	return ubo_data.light_color_0 * accum_fog;
@@ -83,11 +82,13 @@ void main()
 	vec3 ray = ray_end - ray_start;
 	float ray_length = length(ray);
 	vec3 ray_dir = normalize(ray);
-	vec3 fog = CalculateLightshaft(ray_start, ray_dir, ray_length, 10);
+	vec3 fog = CalculateLightshaft(ray_start, ray_dir, ray_length, 50);
 	
 	color = texture(color_sampler, f_uv);
-	color.xyz -= fog;
-	//color = vec4(lightshaft, 1.0f);
+	color.xyz += fog;
+	//color = vec4(fog, 1.0f);
 
 	//color = vec4(vec3(texture(position_sampler, f_uv).z), 1.0f);
+	//color = vec4(vec3(texture(shadow_sampler, f_uv).r), 1.0f);
+	//color = vec4(ubo_data.light_pos_0.xyz, 1.0f);
 }

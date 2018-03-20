@@ -51,20 +51,23 @@ void Window::Create(const std::string& name, int width, int height)
 void Window::InitLights()
 {
 	//Light 0
-	lights[0].position = glm::vec3(-2.0f, 2.0f, 0.0f);
+	lights[0].position = glm::vec3(-10.0f, 10.0f, 0.0f);
 	lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
-	lights[0].vp = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	glm::vec3 origin(0.0f);
+	glm::mat4 light_trans = glm::translate(origin - lights[0].position);
+	glm::mat4 light_rot = glm::rotate(90.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+	lights[0].vp = glm::perspective(70.0f, 1.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, glm::vec3(0.0f, -0.9999f, 0.00001f), glm::vec3(0.0f, 1.0f, 0.0f));
+	//lights[0].vp = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
 void Window::Init()
 {
 	//Camera
-	camera = Camera(glm::vec3(0.0f, 2.0f, 10.0f), glm::vec3(0.0f, 0.0f, -1.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.25f, true);
+	camera = Camera(glm::vec3(0.0f, 2.0f, 10.0f), glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.25f, true);
 	camera_perspective_matrix = glm::perspective(glm::radians(70.0f), (float)screen_width / screen_height, NEAR_PLANE, FAR_PLANE);
 
 	//Light
 	InitLights();
-	light_perspective_matrix = glm::ortho(-10.0f, 10.0f, -1.0f, 1.0f, NEAR_PLANE, FAR_PLANE);
 
 	//Other
 	total_time = 0.0f, frame_time = 0.0f;
@@ -104,50 +107,83 @@ void Window::Init()
 	u_lightshaft_texture_color = glGetUniformLocation(shader_lightshaft.shader_program, "color_sampler");
 	u_lightshaft_texture_position = glGetUniformLocation(shader_lightshaft.shader_program, "position_sampler");
 
-	//Plane
-	const unsigned int plane_num_vertices = 24;
-	const float plane_vertices[plane_num_vertices] = {
-		-100.0f, -4.0f, -100.0f,	+0.0f, +1.0f, +0.0f,
-		-100.0f, -4.0f, +100.0f,	+0.0f, +1.0f, +0.0f,
-		+100.0f, -4.0f, +100.0f,	+0.0f, +1.0f, +0.0f,
-		+100.0f, -4.0f, -100.0f,	+0.0f, +1.0f, +0.0f
+	//Surrounding cube
+	const unsigned int surr_cube_num_vertices = 216;
+	const float surr_cube_vertices[surr_cube_num_vertices] = {
+		//Front
+		-15.0f, +15.0f, +15.0f,	+0.0f, +0.0f, -1.0f,	0.2f, 0.2f, 0.4f,
+		-15.0f, -3.0f, +15.0f,	+0.0f, +0.0f, -1.0f,	0.2f, 0.2f, 0.4f,
+		+15.0f, -3.0f, +15.0f,	+0.0f, +0.0f, -1.0f,	0.2f, 0.2f, 0.4f,
+		+15.0f, +15.0f, +15.0f,	+0.0f, +0.0f, -1.0f,	0.2f, 0.2f, 0.4f,
+		//Back
+		+15.0f, +15.0f, -15.0f,	+0.0f, +0.0f, +1.0f,	0.2f, 0.2f, 0.4f,
+		+15.0f, -3.0f, -15.0f,	+0.0f, +0.0f, +1.0f,	0.2f, 0.2f, 0.4f,
+		-15.0f, -3.0f, -15.0f,	+0.0f, +0.0f, +1.0f,	0.2f, 0.2f, 0.4f,
+		-15.0f, +15.0f, -15.0f,	+0.0f, +0.0f, +1.0f,	0.2f, 0.2f, 0.4f,
+		//Left
+		-15.0f, +15.0f, -15.0f, +1.0f, +0.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		-15.0f, -3.0f, -15.0f,	+1.0f, +0.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		-15.0f, -3.0f, +15.0f,	+1.0f, +0.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		-15.0f, +15.0f, +15.0f,	+1.0f, +0.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		//Right
+		+15.0f, +15.0f, +15.0f,	-1.0f, +0.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		+15.0f, -3.0f, +15.0f,	-1.0f, +0.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		+15.0f, -3.0f, -15.0f,	-1.0f, +0.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		+15.0f, +15.0f, -15.0f,	-1.0f, +0.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		//Top
+		-15.0f, +15.0f, -15.0f,	+0.0f, -1.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		-15.0f, +15.0f, +15.0f,	+0.0f, -1.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		+15.0f, +15.0f, +15.0f,	+0.0f, -1.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		+15.0f, +15.0f, -15.0f,	+0.0f, -1.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		//Bottom
+		-15.0f, -3.0f, +15.0f,	+0.0f, +1.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		-15.0f, -3.0f, -15.0f,	+0.0f, +1.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		+15.0f, -3.0f, -15.0f,	+0.0f, +1.0f, +0.0f,	0.2f, 0.2f, 0.4f,
+		+15.0f, -3.0f, +15.0f,	+0.0f, +1.0f, +0.0f,	0.2f, 0.2f, 0.4f
 	};
-	const unsigned int plane_num_indices = 6;
-	const unsigned int plane_indices[plane_num_indices] = { 0, 1, 2, 2, 3, 0 };
-	LoadGeometry(&plane_vao, plane_vertices, plane_num_vertices, plane_indices, plane_num_indices, &plane_ibo, VertexDataLayout::VERTEX_NORMAL);
+	const unsigned int surr_cube_num_indices = 36;
+	const unsigned int surr_cube_indices[surr_cube_num_indices] = {
+		2, 1, 0, 0, 3, 2,
+		6, 5, 4, 4, 7, 6,
+		10, 9, 8, 8, 11, 10,
+		14, 13, 12, 12, 15, 14,
+		18, 17, 16, 16, 19, 18,
+		22, 21, 20, 20, 23, 22,
+	};
+	LoadGeometry(&surr_cube_vao, surr_cube_vertices, surr_cube_num_vertices, surr_cube_indices, surr_cube_num_indices, &surr_cube_ibo, VertexDataLayout::VERTEX_NORMAL_COLOR);
 	//Cube
-	const unsigned int cube_num_vertices = 144;
+	const unsigned int cube_num_vertices = 216;
 	const float cube_vertices[cube_num_vertices] = {
 		//Front
-		-0.5f, +0.5f, +0.5f,	+0.0f, +0.0f, +1.0f,
-		-0.5f, -0.5f, +0.5f,	+0.0f, +0.0f, +1.0f,
-		+0.5f, -0.5f, +0.5f,	+0.0f, +0.0f, +1.0f,
-		+0.5f, +0.5f, +0.5f,	+0.0f, +0.0f, +1.0f,
+		-0.5f, +0.5f, +0.5f,	+0.0f, +0.0f, +1.0f,	1.0f, 0.0f, 0.0f,
+		-0.5f, -0.5f, +0.5f,	+0.0f, +0.0f, +1.0f,	1.0f, 0.0f, 0.0f,
+		+0.5f, -0.5f, +0.5f,	+0.0f, +0.0f, +1.0f,	1.0f, 0.0f, 0.0f,
+		+0.5f, +0.5f, +0.5f,	+0.0f, +0.0f, +1.0f,	1.0f, 0.0f, 0.0f,
 		//Back
-		+0.5f, +0.5f, -0.5f,	+0.0f, +0.0f, -1.0f,
-		+0.5f, -0.5f, -0.5f,	+0.0f, +0.0f, -1.0f,
-		-0.5f, -0.5f, -0.5f,	+0.0f, +0.0f, -1.0f,
-		-0.5f, +0.5f, -0.5f,	+0.0f, +0.0f, -1.0f,
+		+0.5f, +0.5f, -0.5f,	+0.0f, +0.0f, -1.0f,	1.0f, 0.0f, 0.0f,
+		+0.5f, -0.5f, -0.5f,	+0.0f, +0.0f, -1.0f,	1.0f, 0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f,	+0.0f, +0.0f, -1.0f,	1.0f, 0.0f, 0.0f,
+		-0.5f, +0.5f, -0.5f,	+0.0f, +0.0f, -1.0f,	1.0f, 0.0f, 0.0f,
 		//Left
-		-0.5f, +0.5f, -0.5f,	-1.0f, +0.0f, +0.0f,
-		-0.5f, -0.5f, -0.5f,	-1.0f, +0.0f, +0.0f,
-		-0.5f, -0.5f, +0.5f,	-1.0f, +0.0f, +0.0f,
-		-0.5f, +0.5f, +0.5f,	-1.0f, +0.0f, +0.0f,
+		-0.5f, +0.5f, -0.5f,	-1.0f, +0.0f, +0.0f,	1.0f, 0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f,	-1.0f, +0.0f, +0.0f,	1.0f, 0.0f, 0.0f,
+		-0.5f, -0.5f, +0.5f,	-1.0f, +0.0f, +0.0f,	1.0f, 0.0f, 0.0f,
+		-0.5f, +0.5f, +0.5f,	-1.0f, +0.0f, +0.0f,	1.0f, 0.0f, 0.0f,
 		//Right
-		+0.5f, +0.5f, +0.5f,	+1.0f, +0.0f, +0.0f,
-		+0.5f, -0.5f, +0.5f,	+1.0f, +0.0f, +0.0f,
-		+0.5f, -0.5f, -0.5f,	+1.0f, +0.0f, +0.0f,
-		+0.5f, +0.5f, -0.5f,	+1.0f, +0.0f, +0.0f,
+		+0.5f, +0.5f, +0.5f,	+1.0f, +0.0f, +0.0f,	1.0f, 0.0f, 0.0f,
+		+0.5f, -0.5f, +0.5f,	+1.0f, +0.0f, +0.0f,	1.0f, 0.0f, 0.0f,
+		+0.5f, -0.5f, -0.5f,	+1.0f, +0.0f, +0.0f,	1.0f, 0.0f, 0.0f,
+		+0.5f, +0.5f, -0.5f,	+1.0f, +0.0f, +0.0f,	1.0f, 0.0f, 0.0f,
 		//Top
-		-0.5f, +0.5f, -0.5f,	+0.0f, +1.0f, +0.0f,
-		-0.5f, +0.5f, +0.5f,	+0.0f, +1.0f, +0.0f,
-		+0.5f, +0.5f, +0.5f,	+0.0f, +1.0f, +0.0f,
-		+0.5f, +0.5f, -0.5f,	+0.0f, +1.0f, +0.0f,
+		-0.5f, +0.5f, -0.5f,	+0.0f, +1.0f, +0.0f,	1.0f, 0.0f, 0.0f,
+		-0.5f, +0.5f, +0.5f,	+0.0f, +1.0f, +0.0f,	1.0f, 0.0f, 0.0f,
+		+0.5f, +0.5f, +0.5f,	+0.0f, +1.0f, +0.0f,	1.0f, 0.0f, 0.0f,
+		+0.5f, +0.5f, -0.5f,	+0.0f, +1.0f, +0.0f,	1.0f, 0.0f, 0.0f,
 		//Bottom
-		-0.5f, -0.5f, +0.5f,	+0.0f, -1.0f, +0.0f,
-		-0.5f, -0.5f, -0.5f,	+0.0f, -1.0f, +0.0f,
-		+0.5f, -0.5f, -0.5f,	+0.0f, -1.0f, +0.0f,
-		+0.5f, -0.5f, +0.5f,	+0.0f, -1.0f, +0.0f,
+		-0.5f, -0.5f, +0.5f,	+0.0f, -1.0f, +0.0f,	1.0f, 0.0f, 0.0f,
+		-0.5f, -0.5f, -0.5f,	+0.0f, -1.0f, +0.0f,	1.0f, 0.0f, 0.0f,
+		+0.5f, -0.5f, -0.5f,	+0.0f, -1.0f, +0.0f,	1.0f, 0.0f, 0.0f,
+		+0.5f, -0.5f, +0.5f,	+0.0f, -1.0f, +0.0f,	1.0f, 0.0f, 0.0f
 	};
 	const unsigned int cube_num_indices = 36;
 	const unsigned int cube_indices[cube_num_indices]{
@@ -158,7 +194,7 @@ void Window::Init()
 		16, 17, 18, 18, 19, 16,
 		20, 21, 22, 22, 23, 20,
 	};
-	LoadGeometry(&cube_vao, cube_vertices, cube_num_vertices, cube_indices, cube_num_indices, &cube_ibo, VertexDataLayout::VERTEX_NORMAL);
+	LoadGeometry(&cube_vao, cube_vertices, cube_num_vertices, cube_indices, cube_num_indices, &cube_ibo, VertexDataLayout::VERTEX_NORMAL_COLOR);
 
 	//Shadow framebuffer and texture
 	glGenTextures(1, &texture_shadow);
@@ -177,14 +213,6 @@ void Window::Init()
 	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
 
 	//GBuffer
-	/*glGenTextures(1, &texture_depth);
-	glBindTexture(GL_TEXTURE_2D, texture_depth);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, screen_width, screen_height, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, texture_depth, 0);*/
 	glGenFramebuffers(1, &fbo_gbuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_gbuffer);
 	glGenTextures(1, &texture_color);
@@ -201,7 +229,7 @@ void Window::Init()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, screen_width, screen_height, 0, GL_RGBA, GL_FLOAT, NULL); //RGB32F/16F doesn't seem to work for whatever reason...
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, screen_width, screen_height, 0, GL_RGBA, GL_FLOAT, NULL);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, texture_position, 0);
 	GLenum attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
 	glDrawBuffers(2, attachments);
@@ -254,15 +282,14 @@ void Window::Update()
 	///////////////RENDER///////////////////
 	////////////////////////////////////////
 	//Shadow pass
-	glCullFace(GL_FRONT);
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_shadow);
 	glClear(GL_DEPTH_BUFFER_BIT);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
 	glUseProgram(shader_shadow.shader_program);
-	glBindVertexArray(plane_vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, plane_ibo);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	glBindVertexArray(surr_cube_vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, surr_cube_ibo);
+	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(cube_vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube_ibo);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
@@ -272,25 +299,24 @@ void Window::Update()
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
 	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
 	glViewport(0, 0, screen_width, screen_height);
-	glCullFace(GL_BACK);
 
 	//GBuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_gbuffer);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	//Render a quad with a "maximum" depth so that when sampling the gbuffer texture
 	//we always get a point as the entire screen is always covered by a polygon
-	glUseProgram(shader_gbuffer_quad.shader_program);
+	/*glUseProgram(shader_gbuffer_quad.shader_program);
 	glBindVertexArray(quad_vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);*/
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
 	glUseProgram(shader_gbuffer.shader_program);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, texture_shadow);
 	glUniform1i(u_gbuffer_texture_shadow, 0);
-	glBindVertexArray(plane_vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, plane_ibo);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	glBindVertexArray(surr_cube_vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, surr_cube_ibo);
+	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 	glBindVertexArray(cube_vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube_ibo);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);

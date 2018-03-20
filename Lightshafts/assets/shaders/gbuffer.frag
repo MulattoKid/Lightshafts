@@ -8,6 +8,7 @@
 
 in vec3 f_position;
 in vec3 f_normal;
+in vec3 f_color;
 in vec4 f_position_light_space_0;
 
 uniform layout(location=0) sampler2D shadow_sampler;
@@ -28,11 +29,10 @@ out layout(location=1) vec4 g_position;
 
 float InShadow(vec4 frag_pos_light_space)
 {
-    //vec3 frag_pos_proj = frag_pos_light_space.xyz / frag_pos_light_space.w; //Only needed when using perspective projection
-    vec3 frag_pos_proj = frag_pos_light_space.xyz; //Orthographics projection
+    vec3 frag_pos_proj = frag_pos_light_space.xyz / frag_pos_light_space.w;
     frag_pos_proj = frag_pos_proj * 0.5f + 0.5f; //Range [-1,1] -> [0,1]
     float light_min_depth = texture(shadow_sampler, frag_pos_proj.xy).r;
-    float bias = 0.005;
+    float bias = 0.001;
     float in_shadow = frag_pos_proj.z - bias > light_min_depth ? 1.0f : 0.0f; //If in shadow, return 1, else 0
     if (frag_pos_proj.z > 1.0)
     {
@@ -43,7 +43,7 @@ float InShadow(vec4 frag_pos_light_space)
 
 vec3 CalculateLighting(vec3 camera_pos, vec3 light_pos, vec3 light_color)
 {
-    vec4 albedo = vec4(1.0f, 0.0f, 0.0f, 1.0f);
+    vec4 albedo = vec4(f_color, 1.0f);
     vec3 light_dir = normalize(light_pos - f_position);
     vec3 reflect_dir = normalize(reflect(-light_dir, f_normal));
     vec3 view_dir = normalize(camera_pos - f_position);
