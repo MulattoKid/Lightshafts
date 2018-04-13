@@ -24,14 +24,17 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="OBJLoader.cpp" />
     <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="StringUtilities.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="GLUtilities.h" />
     <ClInclude Include="Light.h" />
+    <ClInclude Include="Mesh.h" />
     <ClInclude Include="OBJLoader.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="StringUtilities.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
@@ -43,8 +46,6 @@
     <None Include="assets\shaders\gbuffer.vert" />
     <None Include="assets\shaders\lightshaft.frag" />
     <None Include="assets\shaders\lightshaft.vert" />
-    <None Include="assets\shaders\quad.frag" />
-    <None Include="assets\shaders\quad.vert" />
     <None Include="assets\shaders\shadow.frag" />
     <None Include="assets\shaders\shadow.vert" />
   </ItemGroup>

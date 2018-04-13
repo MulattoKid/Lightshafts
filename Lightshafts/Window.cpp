@@ -48,23 +48,17 @@ void Window::Create(const std::string& name, int width, int height)
 	printf("***  OpenGL Version: %s  ***\n", glGetString(GL_VERSION));
 }
 
-void Window::InitLights()
-{
-	//Light 0
-	lights[0].position = glm::vec3(1.5f, 7.0f, 0.0f);
-	lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
-	lights[0].vp = glm::perspective(70.0f, 1.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, lights[0].position + glm::vec3(0.0f, -0.9999f, 0.0001f), glm::vec3(0.0f, 1.0f, 0.0f));
-	//lights[0].vp = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, lights[0].position + glm::vec3(0.0f, -0.9999f, 0.0001f), glm::vec3(0.0f, 1.0f, 0.0f));
-}
-
 void Window::Init()
 {
 	//Camera
 	camera = Camera(glm::vec3(0.0f, 2.0f, 10.0f), glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), 0.25f, true);
 	camera_perspective_matrix = glm::perspective(glm::radians(70.0f), (float)screen_width / screen_height, NEAR_PLANE, FAR_PLANE);
-
 	//Light
-	InitLights();
+	lights[0].position = glm::vec3(1.5f, 7.0f, 0.0f);
+	lights[0].dir = glm::normalize(glm::vec3(0.0f) - lights[0].position); //Always look at center
+	lights[0].cutoff = glm::cos(glm::radians(30.0f)); //30 degree cutoff
+	lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
+	lights[0].vp = glm::perspective(70.0f, 1.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	//Other
 	total_time = 0.0f, frame_time = 0.0f;
@@ -82,7 +76,6 @@ void Window::Init()
 	shader_lightshaft.Init("assets/shaders/lightshaft.vert", "assets/shaders/lightshaft.frag");
 	shader_compute_scattering.Init("assets/shaders/compute_scattering.vert", "assets/shaders/compute_scattering.frag");
 	shader_add_scattering.Init("assets/shaders/add_scattering.vert", "assets/shaders/add_scattering.frag");
-	shader_quad.Init("assets/shaders/quad.vert", "assets/shaders/quad.frag");
 
 	//UBO
 	glGenBuffers(1, &ubo);
@@ -99,12 +92,12 @@ void Window::Init()
 	glUniformBlockBinding(shader_compute_scattering.shader_program, u_shader_compute_scattering_ubo, 0);
 	u_shader_add_scattering_ubo = glGetUniformBlockIndex(shader_add_scattering.shader_program, "UBOData");
 	glUniformBlockBinding(shader_add_scattering.shader_program, u_shader_add_scattering_ubo, 0);
-	u_shader_quad_ubo = glGetUniformBlockIndex(shader_quad.shader_program, "UBOData");
-	glUniformBlockBinding(shader_quad.shader_program, u_shader_quad_ubo, 0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
 
-	//Texture uniforms
+	//Uniforms
+	u_shadow_model_matrix = glGetUniformLocation(shader_shadow.shader_program, "model_matrix");
 	u_gbuffer_texture_shadow = glGetUniformLocation(shader_gbuffer.shader_program, "shadow_sampler");
+	u_gbuffer_model_matrix = glGetUniformLocation(shader_gbuffer.shader_program, "model_matrix");
 	u_lightshaft_texture_shadow = glGetUniformLocation(shader_lightshaft.shader_program, "shadow_sampler");
 	u_lightshaft_texture_color = glGetUniformLocation(shader_lightshaft.shader_program, "color_sampler");
 	u_lightshaft_texture_position = glGetUniformLocation(shader_lightshaft.shader_program, "position_sampler");
@@ -202,7 +195,8 @@ void Window::Init()
 	};
 	LoadGeometry(&cube_vao, cube_vertices, cube_num_vertices, cube_indices, cube_num_indices, &cube_ibo, VertexDataLayout::VERTEX_NORMAL_COLOR);
 	//Statue
-
+	LoadOBJ("assets/obj/Alucy.obj", &alucy, glm::vec3(0.5f, 0.2f, 0.2f));
+	LoadGeometry(&alucy_vao, &alucy.vertex_buffer[0], alucy.num_vertices, &alucy.index_buffer[0], alucy.num_indices, &alucy_ibo, VertexDataLayout::VERTEX_NORMAL_COLOR);
 
 	//Shadow framebuffer and texture
 	glGenTextures(1, &texture_shadow);
@@ -261,7 +255,7 @@ void Window::Init()
 	glReadBuffer(GL_NONE);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
-	lightshaft_basic = true;
+	lightshaft_basic = false; //If true ->lightshafts are slow
 
 	//Quad
 	GLfloat quad_vertices[20] = {
@@ -276,12 +270,17 @@ void Window::Init()
 
 void Window::Update()
 {
-	CheckForEvents();
-
 	//Updates
+	CheckForEvents();
+	//View and projection matrices
 	glm::mat4 camera_view_matrix = camera.WorldToViewMatrix();
 	glm::mat4 camera_vp = camera_perspective_matrix * camera_view_matrix;
-	lights[0].vp = glm::perspective(70.0f, 1.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, lights[0].position + glm::vec3(0.0f, -0.9999f, 0.0001f), glm::vec3(0.0f, 1.0f, 0.0f));
+	lights[0].dir = glm::normalize(glm::vec3(0.0f) - lights[0].position); //Always look at center
+	lights[0].vp = glm::perspective(70.0f, 1.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f)); //Always look at center
+	//Model matrices
+	glm::mat4 surr_cube_model_matrix = glm::mat4(1.0f);
+	glm::mat4 cube_model_matrix = glm::translate(glm::vec3(1.0f, 0.0f, 0.0f)) * glm::scale(glm::vec3(1.0f, 1.0f, 1.0f));
+	glm::mat4 alucy_model_matrix = glm::translate(glm::vec3(-1.0f, -2.5f, 0.0f)) * glm::scale(glm::vec3(0.005f, 0.005f, 0.005f));
 	//Update UBO
 	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
 	UBOData* ptr = (UBOData*)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
@@ -298,6 +297,8 @@ void Window::Update()
 		memcpy(&ptr->camera_dir, &glm::vec4(camera.view_direction, 0.0f)[0], 4 * sizeof(float));
 		//Light 0
 		memcpy(&ptr->light_pos_0, &glm::vec4(lights[0].position, 0.0f)[0], 4 * sizeof(float));
+		memcpy(&ptr->light_dir_0, &glm::vec4(lights[0].dir, 0.0f)[0], 4 * sizeof(float));
+		memcpy(&ptr->light_cutoff_0, &glm::vec4(lights[0].cutoff, 0.0f, 0.0f, 0.0f)[0], 4 * sizeof(float));
 		memcpy(&ptr->light_color_0, &glm::vec4(lights[0].color, 0.0f)[0], 4 * sizeof(float));
 		memcpy(&ptr->light_vp_0, &lights[0].vp[0][0], 16 * sizeof(float));
 		glUnmapBuffer(GL_UNIFORM_BUFFER);
@@ -315,10 +316,16 @@ void Window::Update()
 	glUseProgram(shader_shadow.shader_program);
 	glBindVertexArray(surr_cube_vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, surr_cube_ibo);
+	glUniformMatrix4fv(u_shadow_model_matrix, 1, GL_FALSE, &surr_cube_model_matrix[0][0]);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-	glBindVertexArray(cube_vao);
+	/*glBindVertexArray(cube_vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube_ibo);
-	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+	glUniformMatrix4fv(u_shadow_model_matrix, 1, GL_FALSE, &cube_model_matrix[0][0]);
+	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);*/
+	glBindVertexArray(alucy_vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, alucy_ibo);
+	glUniformMatrix4fv(u_shadow_model_matrix, 1, GL_FALSE, &alucy_model_matrix[0][0]);
+	glDrawElements(GL_TRIANGLES, alucy.num_indices, GL_UNSIGNED_INT, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 	glUseProgram(0);
@@ -336,10 +343,16 @@ void Window::Update()
 	glUniform1i(u_gbuffer_texture_shadow, 0);
 	glBindVertexArray(surr_cube_vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, surr_cube_ibo);
+	glUniformMatrix4fv(u_gbuffer_model_matrix, 1, GL_FALSE, &surr_cube_model_matrix[0][0]);
 	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-	glBindVertexArray(cube_vao);
+	/*glBindVertexArray(cube_vao);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube_ibo);
-	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+	glUniformMatrix4fv(u_gbuffer_model_matrix, 1, GL_FALSE, &cube_model_matrix[0][0]);
+	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);*/
+	glBindVertexArray(alucy_vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, alucy_ibo);
+	glUniformMatrix4fv(u_gbuffer_model_matrix, 1, GL_FALSE, &alucy_model_matrix[0][0]);
+	glDrawElements(GL_TRIANGLES, alucy.num_indices, GL_UNSIGNED_INT, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 	glUseProgram(0);
@@ -418,18 +431,6 @@ void Window::Update()
 		long long ls_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - ls_start).count(); //ms
 		printf("%i\n", ls_time_ms);
 	}
-
-	//Test quad
-	/*glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
-	glUseProgram(shader_quad.shader_program);
-	glBindVertexArray(quad_vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-	glUseProgram(0);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);*/
 
 	SDL_GL_SwapWindow(window);
 }

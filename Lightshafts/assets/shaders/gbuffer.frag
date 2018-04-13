@@ -20,6 +20,8 @@ layout (std140) uniform UBOData
     vec4 camera_pos;
     vec4 camera_dir;
     vec4 light_pos_0;
+	vec4 light_dir_0;
+	vec4 light_cutoff_0;
     vec4 light_color_0;
 	mat4 light_vp_0;
 } ubo_data;
@@ -31,22 +33,6 @@ float InShadow(vec4 frag_pos_light_space)
 {
     vec3 frag_pos_proj = frag_pos_light_space.xyz / frag_pos_light_space.w;
     frag_pos_proj = frag_pos_proj * 0.5f + 0.5f; //Range [-1,1] -> [0,1]
-	/*if (frag_pos_proj.x < -1.0f)
-	{
-		return 0.0f;
-	}
-	if (frag_pos_proj.x > 1.0f)
-	{
-		return 0.0f;
-	}
-	if (frag_pos_proj.y < -1.0f)
-	{
-		return 0.0f;
-	}
-	if (frag_pos_proj.y > 1.0f)
-	{
-		return 0.0f;
-	}*/
     float light_min_depth = texture(shadow_sampler, frag_pos_proj.xy).r;
     float bias = 0.001;
     float in_shadow = frag_pos_proj.z - bias > light_min_depth ? 1.0f : 0.0f; //If in shadow, return 1, else 0
@@ -59,7 +45,6 @@ float InShadow(vec4 frag_pos_light_space)
 
 vec3 CalculateLighting(vec3 camera_pos, vec3 light_pos, vec3 light_color)
 {
-    vec4 albedo = vec4(f_color, 1.0f);
     vec3 light_dir = normalize(light_pos - f_position);
     vec3 reflect_dir = normalize(reflect(-light_dir, f_normal));
     vec3 view_dir = normalize(camera_pos - f_position);
@@ -79,13 +64,22 @@ vec3 CalculateLighting(vec3 camera_pos, vec3 light_pos, vec3 light_color)
     vec3 specular_intensity = vec3(specular) * SPECULAR;
 
     float in_shadow_light_0 = InShadow(f_position_light_space_0);
-    return vec3(albedo) * (ambient_intensity + emissive_intensity + (1.0f - in_shadow_light_0) * (diffuse_intensity + specular_intensity * vec3(ubo_data.light_color_0)));
+    return ambient_intensity + emissive_intensity + (1.0f - in_shadow_light_0) * (diffuse_intensity + specular_intensity * vec3(ubo_data.light_color_0));
 }
 
 void main()
 {
-	vec3 lighting_0 = CalculateLighting(vec3(ubo_data.camera_pos), vec3(ubo_data.light_pos_0), vec3(ubo_data.light_color_0));
+	vec3 albedo = f_color;
 
-    g_color = vec4(lighting_0, 1.0f);
+	//Light 0
+	vec3 point_to_light = normalize(ubo_data.light_pos_0.xyz - f_position);
+	vec3 lighting_0 = CalculateLighting(ubo_data.camera_pos.xyz, ubo_data.light_pos_0.xyz, ubo_data.light_color_0.xyz);
+	/*vec3 lighting_0 = vec3(1.0f);
+	if (dot(point_to_light, normalize(-ubo_data.light_dir_0.xyz)) > ubo_data.light_cutoff_0.x)
+	{
+		lighting_0 = CalculateLighting(ubo_data.camera_pos.xyz, ubo_data.light_pos_0.xyz, ubo_data.light_color_0.xyz);
+	}*/
+
+    g_color = vec4(albedo * lighting_0, 1.0f);
 	g_position = vec4(f_position, 1.0f);
 }
