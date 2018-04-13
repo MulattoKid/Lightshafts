@@ -51,8 +51,9 @@ float CalculateScattering(float ray_dot_light)
 	return scattering;
 }
 
-void main()
+vec3 CalculateLightshaft()
 {
+	//Init
 	int num_samples = 30;
 	vec3 ray_start = vec3(ubo_data.camera_pos);
 	vec3 ray_end = texture(position_sampler, f_uv).xyz;
@@ -81,8 +82,14 @@ void main()
 		}
 		current_pos += step;
 	}
-	scattering /= num_samples;
+	return scattering / num_samples;
+}
+
+void main()
+{
+	vec3 scattering = CalculateLightshaft();
 
 	color = texture(color_sampler, f_uv);
 	color.xyz += scattering * ubo_data.light_color_0.xyz;
+	//color = vec4(scattering, 1.0f);
 }

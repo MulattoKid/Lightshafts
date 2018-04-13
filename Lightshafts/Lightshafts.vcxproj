@@ -24,24 +24,23 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="OBJLoader.cpp" />
     <ClCompile Include="Shader.cpp" />
-    <ClCompile Include="StringUtilities.cpp" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="GLUtilities.h" />
     <ClInclude Include="Light.h" />
-    <ClInclude Include="Mesh.h" />
     <ClInclude Include="OBJLoader.h" />
     <ClInclude Include="Shader.h" />
-    <ClInclude Include="StringUtilities.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="assets\shaders\add_scattering.frag" />
+    <None Include="assets\shaders\add_scattering.vert" />
+    <None Include="assets\shaders\compute_scattering.frag" />
+    <None Include="assets\shaders\compute_scattering.vert" />
     <None Include="assets\shaders\gbuffer.frag" />
     <None Include="assets\shaders\gbuffer.vert" />
-    <None Include="assets\shaders\gbuffer_quad.frag" />
-    <None Include="assets\shaders\gbuffer_quad.vert" />
     <None Include="assets\shaders\lightshaft.frag" />
     <None Include="assets\shaders\lightshaft.vert" />
     <None Include="assets\shaders\quad.frag" />

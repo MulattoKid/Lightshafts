@@ -7,17 +7,14 @@
     <ClCompile Include="Window.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="OBJLoader.cpp" />
-    <ClCompile Include="StringUtilities.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GLUtilities.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="Window.h" />
     <ClInclude Include="Camera.h" />
-    <ClInclude Include="OBJLoader.h" />
-    <ClInclude Include="StringUtilities.h" />
-    <ClInclude Include="Mesh.h" />
     <ClInclude Include="Light.h" />
+    <ClInclude Include="OBJLoader.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\shaders\shadow.frag">
@@ -44,10 +41,16 @@
     <None Include="assets\shaders\gbuffer.vert">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="assets\shaders\gbuffer_quad.frag">
+    <None Include="assets\shaders\add_scattering.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="assets\shaders\gbuffer_quad.vert">
+    <None Include="assets\shaders\add_scattering.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="assets\shaders\compute_scattering.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="assets\shaders\compute_scattering.vert">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

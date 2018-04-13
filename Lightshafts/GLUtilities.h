@@ -1,7 +1,6 @@
 #pragma once
 
 #include "include/GL/glew.h"
-#include "OBJLoader.h"
 #include <string>
 
 struct UBOData

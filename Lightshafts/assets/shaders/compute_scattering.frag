@@ -27,8 +27,7 @@ mat4 dither_pattern = {
 in vec2 f_uv;
 
 uniform layout(location=0) sampler2D shadow_sampler;
-uniform layout(location=1) sampler2D color_sampler;
-uniform layout(location=2) sampler2D position_sampler;
+uniform layout(location=1) sampler2D position_sampler;
 layout (std140) uniform UBOData
 {
 	vec4 viewport;
@@ -41,7 +40,7 @@ layout (std140) uniform UBOData
 	mat4 light_vp_0;
 } ubo_data;
 
-out vec4 color;
+out vec4 scattering;
 
 //https://www.astro.umd.edu/~jph/HG_note.pdf
 float CalculateScattering(float ray_dot_light)
@@ -68,7 +67,7 @@ void main()
 	vec3 current_pos = ray_start;
 
 	//Raymarch
-	float scattering = 0.0f;
+	float tmp_scattering = 0.0f;
 	for (int i = 0; i < num_samples; i++)
 	{
 		vec4 current_pos_LS = ubo_data.light_vp_0 * vec4(current_pos, 1.0f);
@@ -77,12 +76,11 @@ void main()
 		float shadow_map_depth = texture(shadow_sampler, current_pos_LSP.xy).r;
 		if (shadow_map_depth > current_pos_LSP.z)
 		{
-			scattering += CalculateScattering(dot(ray_dir, normalize(current_pos_LS.xyz - vec3(ubo_data.light_pos_0))));
+			tmp_scattering += CalculateScattering(dot(ray_dir, normalize(current_pos_LS.xyz - vec3(ubo_data.light_pos_0))));
 		}
 		current_pos += step;
 	}
-	scattering /= num_samples;
+	tmp_scattering /= num_samples;
 
-	color = texture(color_sampler, f_uv);
-	color.xyz += scattering * ubo_data.light_color_0.xyz;
+	scattering = vec4(tmp_scattering, 0.0f, 0.0f, 1.0f);
 }

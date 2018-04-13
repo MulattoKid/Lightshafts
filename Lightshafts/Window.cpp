@@ -51,13 +51,10 @@ void Window::Create(const std::string& name, int width, int height)
 void Window::InitLights()
 {
 	//Light 0
-	lights[0].position = glm::vec3(-10.0f, 10.0f, 0.0f);
+	lights[0].position = glm::vec3(1.5f, 7.0f, 0.0f);
 	lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
-	glm::vec3 origin(0.0f);
-	glm::mat4 light_trans = glm::translate(origin - lights[0].position);
-	glm::mat4 light_rot = glm::rotate(90.0f, glm::vec3(1.0f, 0.0f, 0.0f));
-	lights[0].vp = glm::perspective(70.0f, 1.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, glm::vec3(0.0f, -0.9999f, 0.00001f), glm::vec3(0.0f, 1.0f, 0.0f));
-	//lights[0].vp = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+	lights[0].vp = glm::perspective(70.0f, 1.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, lights[0].position + glm::vec3(0.0f, -0.9999f, 0.0001f), glm::vec3(0.0f, 1.0f, 0.0f));
+	//lights[0].vp = glm::ortho(-100.0f, 100.0f, -100.0f, 100.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, lights[0].position + glm::vec3(0.0f, -0.9999f, 0.0001f), glm::vec3(0.0f, 1.0f, 0.0f));
 }
 
 void Window::Init()
@@ -82,8 +79,9 @@ void Window::Init()
 	//Shaders
 	shader_shadow.Init("assets/shaders/shadow.vert", "assets/shaders/shadow.frag");
 	shader_gbuffer.Init("assets/shaders/gbuffer.vert", "assets/shaders/gbuffer.frag");
-	shader_gbuffer_quad.Init("assets/shaders/gbuffer_quad.vert", "assets/shaders/gbuffer_quad.frag");
 	shader_lightshaft.Init("assets/shaders/lightshaft.vert", "assets/shaders/lightshaft.frag");
+	shader_compute_scattering.Init("assets/shaders/compute_scattering.vert", "assets/shaders/compute_scattering.frag");
+	shader_add_scattering.Init("assets/shaders/add_scattering.vert", "assets/shaders/add_scattering.frag");
 	shader_quad.Init("assets/shaders/quad.vert", "assets/shaders/quad.frag");
 
 	//UBO
@@ -97,6 +95,10 @@ void Window::Init()
 	glUniformBlockBinding(shader_gbuffer.shader_program, u_shader_gbuffer_ubo, 0);
 	u_shader_lightshaft_ubo = glGetUniformBlockIndex(shader_lightshaft.shader_program, "UBOData");
 	glUniformBlockBinding(shader_lightshaft.shader_program, u_shader_lightshaft_ubo, 0);
+	u_shader_compute_scattering_ubo = glGetUniformBlockIndex(shader_compute_scattering.shader_program, "UBOData");
+	glUniformBlockBinding(shader_compute_scattering.shader_program, u_shader_compute_scattering_ubo, 0);
+	u_shader_add_scattering_ubo = glGetUniformBlockIndex(shader_add_scattering.shader_program, "UBOData");
+	glUniformBlockBinding(shader_add_scattering.shader_program, u_shader_add_scattering_ubo, 0);
 	u_shader_quad_ubo = glGetUniformBlockIndex(shader_quad.shader_program, "UBOData");
 	glUniformBlockBinding(shader_quad.shader_program, u_shader_quad_ubo, 0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
@@ -106,6 +108,10 @@ void Window::Init()
 	u_lightshaft_texture_shadow = glGetUniformLocation(shader_lightshaft.shader_program, "shadow_sampler");
 	u_lightshaft_texture_color = glGetUniformLocation(shader_lightshaft.shader_program, "color_sampler");
 	u_lightshaft_texture_position = glGetUniformLocation(shader_lightshaft.shader_program, "position_sampler");
+	u_compute_scattering_texture_shadow = glGetUniformLocation(shader_compute_scattering.shader_program, "shadow_sampler");
+	u_compute_scattering_texture_position = glGetUniformLocation(shader_compute_scattering.shader_program, "position_sampler");
+	u_add_scattering_texture_color = glGetUniformLocation(shader_add_scattering.shader_program, "color_sampler");
+	u_add_scattering_texture_scattering = glGetUniformLocation(shader_add_scattering.shader_program, "scattering_sampler");
 
 	//Surrounding cube
 	const unsigned int surr_cube_num_vertices = 216;
@@ -195,6 +201,8 @@ void Window::Init()
 		20, 21, 22, 22, 23, 20,
 	};
 	LoadGeometry(&cube_vao, cube_vertices, cube_num_vertices, cube_indices, cube_num_indices, &cube_ibo, VertexDataLayout::VERTEX_NORMAL_COLOR);
+	//Statue
+
 
 	//Shadow framebuffer and texture
 	glGenTextures(1, &texture_shadow);
@@ -217,25 +225,43 @@ void Window::Init()
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_gbuffer);
 	glGenTextures(1, &texture_color);
 	glBindTexture(GL_TEXTURE_2D, texture_color);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, screen_width, screen_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_color, 0);
 	glGenTextures(1, &texture_position);
 	glBindTexture(GL_TEXTURE_2D, texture_position);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, screen_width, screen_height, 0, GL_RGBA, GL_FLOAT, NULL);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, texture_position, 0);
-	GLenum attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
-	glDrawBuffers(2, attachments);
+	GLenum gbuffer_attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+	glDrawBuffers(2, gbuffer_attachments);
 	glReadBuffer(GL_NONE);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
+
+	//Scattering
+	glGenFramebuffers(1, &fbo_scattering);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo_scattering);
+	glGenTextures(1, &texture_scattering);
+	glBindTexture(GL_TEXTURE_2D, texture_scattering);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, screen_width / 2, screen_height / 2, 0, GL_RED, GL_FLOAT, NULL); //Half the size of screen
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_scattering, 0);
+	GLenum lightshaft_attachments[1] = { GL_COLOR_ATTACHMENT0 };
+	glDrawBuffers(1, lightshaft_attachments);
+	glReadBuffer(GL_NONE);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
+	lightshaft_basic = true;
 
 	//Quad
 	GLfloat quad_vertices[20] = {
@@ -250,12 +276,12 @@ void Window::Init()
 
 void Window::Update()
 {
-	auto start = std::chrono::steady_clock::now();
 	CheckForEvents();
 
 	//Updates
 	glm::mat4 camera_view_matrix = camera.WorldToViewMatrix();
 	glm::mat4 camera_vp = camera_perspective_matrix * camera_view_matrix;
+	lights[0].vp = glm::perspective(70.0f, 1.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, lights[0].position + glm::vec3(0.0f, -0.9999f, 0.0001f), glm::vec3(0.0f, 1.0f, 0.0f));
 	//Update UBO
 	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
 	UBOData* ptr = (UBOData*)glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
@@ -303,12 +329,6 @@ void Window::Update()
 	//GBuffer
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_gbuffer);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	//Render a quad with a "maximum" depth so that when sampling the gbuffer texture
-	//we always get a point as the entire screen is always covered by a polygon
-	/*glUseProgram(shader_gbuffer_quad.shader_program);
-	glBindVertexArray(quad_vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);*/
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
 	glUseProgram(shader_gbuffer.shader_program);
 	glActiveTexture(GL_TEXTURE0);
@@ -327,25 +347,77 @@ void Window::Update()
 	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
 
 	//Lightshaft pass
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
-	glUseProgram(shader_lightshaft.shader_program);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texture_shadow);
-	glUniform1i(u_lightshaft_texture_shadow, 0);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, texture_color);
-	glUniform1i(u_lightshaft_texture_color, 1);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, texture_position);
-	glUniform1i(u_lightshaft_texture_position, 2);
-	glBindVertexArray(quad_vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-	glUseProgram(0);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
+	if (lightshaft_basic)
+	{
+		auto ls_start = std::chrono::steady_clock::now();
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
+		glUseProgram(shader_lightshaft.shader_program);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture_shadow);
+		glUniform1i(u_lightshaft_texture_shadow, 0);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, texture_color);
+		glUniform1i(u_lightshaft_texture_color, 1);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, texture_position);
+		glUniform1i(u_lightshaft_texture_position, 2);
+		glBindVertexArray(quad_vao);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+		glUseProgram(0);
+		glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
+		glFinish();
+		long long ls_frame_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - ls_start).count(); //ms
+		printf("%i\n", ls_frame_time_ms);
+	}
+	else
+	{
+		auto ls_start = std::chrono::steady_clock::now();
+		glViewport(0, 0, screen_width / 2, screen_height / 2);
+		glBindFramebuffer(GL_FRAMEBUFFER, fbo_scattering);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
+		glUseProgram(shader_compute_scattering.shader_program);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture_shadow);
+		glUniform1i(u_compute_scattering_texture_shadow, 0);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, texture_position);
+		glUniform1i(u_compute_scattering_texture_position, 1);
+		glBindVertexArray(quad_vao);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+		glUseProgram(0);
+		glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
+		glViewport(0, 0, screen_width, screen_height);
+
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
+		glUseProgram(shader_add_scattering.shader_program);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture_color);
+		glUniform1i(u_add_scattering_texture_color, 0);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, texture_scattering);
+		glUniform1i(u_add_scattering_texture_scattering, 1);
+		glBindVertexArray(quad_vao);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+		glBindVertexArray(0);
+		glUseProgram(0);
+		glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
+
+		glFinish();
+		long long ls_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - ls_start).count(); //ms
+		printf("%i\n", ls_time_ms);
+	}
 
 	//Test quad
 	/*glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -359,15 +431,7 @@ void Window::Update()
 	glUseProgram(0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);*/
 
-	//Swap window
 	SDL_GL_SwapWindow(window);
-
-	//Frame end
-	auto end = std::chrono::steady_clock::now();
-	long long frame_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count(); //ms
-	frame_time = (float)frame_time_ms / 1000.0f; //s
-	total_time += frame_time;
-	//printf("%i\n", frame_time_ms);
 }
 
 void Window::CheckForEvents()
@@ -389,6 +453,21 @@ void Window::CheckForEvents()
 						break;
 					case SDLK_SPACE:
 						camera.rotate ^= 1; //XOR to switch rotate state
+						break;
+					case SDLK_l:
+						lightshaft_basic ^= 1; //XOR which lightshaft method to use
+						break;
+					case SDLK_y:
+						lights[0].position.y += 0.25f;
+						break;
+					case SDLK_h:
+						lights[0].position.y -= 0.25f;
+						break;
+					case SDLK_j:
+						lights[0].position.x += 0.25f;
+						break;
+					case SDLK_g:
+						lights[0].position.x -= 0.25f;
 						break;
 					default: //Update camera position
 						camera.UpdatePosition(e.key.keysym.sym);
