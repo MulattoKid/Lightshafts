@@ -33,8 +33,10 @@
     <ClInclude Include="Light.h" />
     <ClInclude Include="Mesh.h" />
     <ClInclude Include="OBJLoader.h" />
+    <ClInclude Include="Particle.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="StringUtilities.h" />
+    <ClInclude Include="UBOData.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>
@@ -46,6 +48,8 @@
     <None Include="assets\shaders\gbuffer.vert" />
     <None Include="assets\shaders\lightshaft.frag" />
     <None Include="assets\shaders\lightshaft.vert" />
+    <None Include="assets\shaders\particle.frag" />
+    <None Include="assets\shaders\particle.vert" />
     <None Include="assets\shaders\shadow.frag" />
     <None Include="assets\shaders\shadow.vert" />
   </ItemGroup>

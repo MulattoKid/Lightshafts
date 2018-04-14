@@ -28,6 +28,8 @@
     <ClInclude Include="StringUtilities.h">
       <Filter>OBJ</Filter>
     </ClInclude>
+    <ClInclude Include="Particle.h" />
+    <ClInclude Include="UBOData.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="assets\shaders\shadow.frag">
@@ -58,6 +60,12 @@
       <Filter>Shaders</Filter>
     </None>
     <None Include="assets\shaders\compute_scattering.vert">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="assets\shaders\particle.frag">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="assets\shaders\particle.vert">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

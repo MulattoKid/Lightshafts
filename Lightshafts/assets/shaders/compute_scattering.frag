@@ -28,6 +28,7 @@ in vec2 f_uv;
 
 uniform layout(location=0) sampler2D shadow_sampler;
 uniform layout(location=1) sampler2D position_sampler;
+uniform layout(location=2) sampler2D noise_sampler;
 layout (std140) uniform UBOData
 {
 	vec4 viewport;
@@ -69,6 +70,7 @@ void main()
 	vec3 current_pos = ray_start;
 
 	//Raymarch
+	int num_not_in_shadow = 0;
 	float tmp_scattering = 0.0f;
 	for (int i = 0; i < num_samples; i++)
 	{
@@ -79,6 +81,7 @@ void main()
 		if (shadow_map_depth > current_pos_LSP.z)
 		{
 			tmp_scattering += CalculateScattering(dot(ray_dir, normalize(current_pos_LS.xyz - vec3(ubo_data.light_pos_0))));
+			num_not_in_shadow += 1;
 		}
 		current_pos += step;
 	}

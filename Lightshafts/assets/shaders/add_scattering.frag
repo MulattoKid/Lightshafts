@@ -23,8 +23,6 @@ out vec4 color;
 void main()
 {
 	color = texture(color_sampler, f_uv);
-	vec3 scattering = vec3(texture(scattering_sampler, f_uv).x) * ubo_data.light_color_0;
+	vec3 scattering = vec3(texture(scattering_sampler, f_uv).r) * ubo_data.light_color_0;
 	color.xyz += scattering;
-
-	//color = vec4(texture(scattering_sampler, f_uv).x, 0.0f, 0.0f, 1.0f);
 }
