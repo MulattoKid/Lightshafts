@@ -24,11 +24,11 @@ out vec3 f_normal;
 
 void main()
 {
-	vec3 particle_position = position + center;
+	vec4 particle_position = vec4(position + center, 1.0f);
 
-	f_camera_space_position = ubo_data.camera_vp * vec4(particle_position, 1.0f);
-	f_light_space_position = ubo_data.light_vp_0 * vec4(particle_position, 1.0f);
+	f_camera_space_position = ubo_data.camera_vp * particle_position;
+	f_light_space_position = ubo_data.light_vp_0 * particle_position;
 	f_normal = normal;
 
-	gl_Position = ubo_data.camera_vp * vec4(particle_position, 1.0f);
+	gl_Position = f_camera_space_position;
 }

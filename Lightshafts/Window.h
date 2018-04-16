@@ -47,7 +47,7 @@ struct Window
 	GLuint u_lightshaft_texture_shadow, u_lightshaft_texture_color, u_lightshaft_texture_position;
 	GLuint u_compute_scattering_texture_shadow, u_compute_scattering_texture_position, u_compute_scattering_texture_noise;
 	GLuint u_add_scattering_texture_color, u_add_scattering_texture_scattering;
-	GLuint u_particle_texture_shadow, u_particle_texture_scattering;
+	GLuint u_particle_texture_shadow, u_particle_texture_position, u_particle_texture_scattering, u_particle_time;
 
 	//Meshes
 	GLuint surr_cube_vao, surr_cube_ibo;

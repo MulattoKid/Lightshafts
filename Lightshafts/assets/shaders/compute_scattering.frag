@@ -14,6 +14,8 @@
 #define LIGHT_INTENSITY 1.0f
 
 //SCATTERING
+#define SCATTERING_AMPLIFICATION 2.0f
+#define SCATTERING_CONSTANT 0.07957747154f //1.0f / (4.0f * PI)
 #define G 0.2f
 #define G_SQ G * G
 //Bayer-matrix: https://en.wikipedia.org/wiki/Ordered_dithering
@@ -45,17 +47,18 @@ layout (std140) uniform UBOData
 
 out vec4 scattering;
 
-//https://www.astro.umd.edu/~jph/HG_note.pdf
+//Henyey-Greenstein Phase function - https://www.astro.umd.edu/~jph/HG_note.pdf
 float CalculateScattering(float ray_dot_light)
 {
 	float scattering = 1.0f - G_SQ;
-	scattering /= (4.0f * PI) * pow(1.0f + G_SQ - (2 * G * ray_dot_light), 1.5f);
+	scattering /= pow(1.0f + G_SQ - (2 * G * ray_dot_light), 1.5f);
+	scattering *= SCATTERING_CONSTANT;
 	return scattering;
 }
 
 void main()
 {
-	int num_samples = 30;
+	int num_samples = 32;
 	vec3 ray_start = vec3(ubo_data.camera_pos);
 	vec3 ray_end = texture(position_sampler, f_uv).xyz;
 	vec3 ray = ray_end - ray_start;
@@ -88,4 +91,5 @@ void main()
 	tmp_scattering /= num_samples;
 
 	scattering = vec4(tmp_scattering, 0.0f, 0.0f, 1.0f);
+	scattering.x *= SCATTERING_AMPLIFICATION;
 }

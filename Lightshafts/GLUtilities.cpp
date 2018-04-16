@@ -5,6 +5,12 @@
 #include "include/stb/stb_image.h"
 #include <string>
 
+float Lerp(float a, float b, float p)
+{
+	float range = fabs(a - b);
+	return a + (range * p);
+}
+
 void LoadTexture(const std::string& file, const int req_comp, bool use_mipmaps, GLint min_filter, GLint mag_filter, GLint wrap_s, GLint wrap_t, GLuint* id)
 {
 	//Set stb to flip image

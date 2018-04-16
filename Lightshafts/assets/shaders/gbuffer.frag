@@ -36,7 +36,7 @@ float InShadow(vec4 frag_pos_light_space)
     float light_min_depth = texture(shadow_sampler, frag_pos_proj.xy).r;
     float bias = 0.001;
     float in_shadow = frag_pos_proj.z - bias > light_min_depth ? 1.0f : 0.0f; //If in shadow, return 1, else 0
-    if (frag_pos_proj.z > 1.0)
+    if (frag_pos_proj.z > 1.0f)
     {
         in_shadow = 0.0f;
     }
