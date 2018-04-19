@@ -2,11 +2,11 @@
 
 #include "Camera.h"
 #include <chrono>
-#include "include/GL/glew.h"
-#include "include/glm/glm.hpp"
+#include "GL/glew.h"
+#include "glm/glm.hpp"
 #include "Light.h"
 #include "OBJLoader.h"
-#include "include/sdl/SDL.h"
+#include "sdl/SDL.h"
 #include "Shader.h"
 #include <string>
 

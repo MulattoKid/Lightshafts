@@ -1,7 +1,7 @@
 #pragma once
 
-#include "include/GL/glew.h"
-#include "include/glm/glm.hpp"
+#include "GL/glew.h"
+#include "glm/glm.hpp"
 #include <string>
 #include "UBOData.h"
 

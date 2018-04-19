@@ -1,8 +1,6 @@
-#pragma once
-
 #include "GLUtilities.h"
 #define STB_IMAGE_IMPLEMENTATION
-#include "include/stb/stb_image.h"
+#include "stb/stb_image.h"
 #include <string>
 
 float Lerp(float a, float b, float p)

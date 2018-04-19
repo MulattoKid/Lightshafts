@@ -1,8 +1,8 @@
 #pragma once
 
-#include "include/glm/glm.hpp"
-#include "include/glm/gtx/transform.hpp"
-#include "include/sdl/SDL.h"
+#include "glm/glm.hpp"
+#include "glm/gtx/transform.hpp"
+#include "sdl/SDL.h"
 
 struct Camera
 {

@@ -1,7 +1,6 @@
-#pragma once
-
+#include <cstring>
 #include "GLUtilities.h"
-#include "include/glm/gtc/matrix_transform.hpp"
+#include "glm/gtc/matrix_transform.hpp"
 #include "Particle.h"
 #include <time.h>
 #include "Window.h"

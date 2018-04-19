@@ -1,5 +1,5 @@
 #include "Camera.h"
-#include "include/sdl/SDL.h"
+#include "sdl/SDL.h"
 
 Camera::Camera() : position(0.0f, 0.0f, 2.0f), view_direction(0.0f, 0.0f, -1.0f), up(0.0f, 1.0f, 0.0f), movement_speed(0.25f)
 {}

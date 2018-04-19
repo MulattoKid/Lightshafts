@@ -14,6 +14,8 @@
 #define LIGHT_INTENSITY 1.0f
 
 //SCATTERING
+#define SCATTERING_AMPLIFICATION 2.0f
+#define SCATTERING_CONSTANT 0.07957747154f //1.0f / (4.0f * PI)
 #define G 0.2f
 #define G_SQ G * G
 //Bayer-matrix: https://en.wikipedia.org/wiki/Ordered_dithering
@@ -27,8 +29,8 @@ mat4 dither_pattern = {
 in vec2 f_uv;
 
 uniform layout(location=0) sampler2D shadow_sampler;
-uniform layout(location=1) sampler2D color_sampler;
-uniform layout(location=2) sampler2D position_sampler;
+uniform layout(location=1) sampler2D position_sampler;
+uniform layout(location=2) sampler2D noise_sampler;
 layout (std140) uniform UBOData
 {
 	vec4 viewport;
@@ -43,19 +45,20 @@ layout (std140) uniform UBOData
 	mat4 light_vp_0;
 } ubo_data;
 
-out vec4 color;
+out vec4 scattering;
 
-//https://www.astro.umd.edu/~jph/HG_note.pdf
+//Henyey-Greenstein Phase function - https://www.astro.umd.edu/~jph/HG_note.pdf
 float CalculateScattering(float ray_dot_light)
 {
 	float scattering = 1.0f - G_SQ;
-	scattering /= (4.0f * PI) * pow(1.0f + G_SQ - (2 * G * ray_dot_light), 1.5f);
+	scattering /= pow(1.0f + G_SQ - (2 * G * ray_dot_light), 1.5f);
+	scattering *= SCATTERING_CONSTANT;
 	return scattering;
 }
 
 void main()
 {
-	int num_samples = 30;
+	int num_samples = 32;
 	vec3 ray_start = vec3(ubo_data.camera_pos);
 	vec3 ray_end = texture(position_sampler, f_uv).xyz;
 	vec3 ray = ray_end - ray_start;
@@ -70,7 +73,8 @@ void main()
 	vec3 current_pos = ray_start;
 
 	//Raymarch
-	float scattering = 0.0f;
+	int num_not_in_shadow = 0;
+	float tmp_scattering = 0.0f;
 	for (int i = 0; i < num_samples; i++)
 	{
 		vec4 current_pos_LS = ubo_data.light_vp_0 * vec4(current_pos, 1.0f);
@@ -79,12 +83,13 @@ void main()
 		float shadow_map_depth = texture(shadow_sampler, current_pos_LSP.xy).r;
 		if (shadow_map_depth > current_pos_LSP.z)
 		{
-			scattering += CalculateScattering(dot(ray_dir, normalize(current_pos_LS.xyz - vec3(ubo_data.light_pos_0))));
+			tmp_scattering += CalculateScattering(dot(ray_dir, normalize(current_pos_LS.xyz - vec3(ubo_data.light_pos_0))));
+			num_not_in_shadow += 1;
 		}
 		current_pos += step;
 	}
-	scattering /= num_samples;
+	tmp_scattering /= num_samples;
 
-	color = texture(color_sampler, f_uv);
-	color.xyz += scattering * ubo_data.light_color_0.xyz;
+	scattering = vec4(tmp_scattering, 0.0f, 0.0f, 1.0f);
+	scattering.x *= SCATTERING_AMPLIFICATION;
 }
