@@ -57,7 +57,7 @@ void Window::Init()
 	lights[0].position = glm::vec3(4.0f, 10.0f, 0.0f);
 	lights[0].dir = glm::normalize(glm::vec3(0.0f) - lights[0].position); //Always look at center
 	lights[0].cutoff = glm::cos(glm::radians(30.0f)); //30 degree cutoff
-	lights[0].color = glm::vec3(1.0f, 1.0f, 1.0f);
+	lights[0].color = glm::vec3(1.0f, 1.0f, 0.0f);
 	lights[0].vp = glm::perspective(70.0f, 1.0f, NEAR_PLANE, FAR_PLANE) * glm::lookAt(lights[0].position, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
 	//Other
@@ -73,7 +73,6 @@ void Window::Init()
 	//Shaders
 	shader_shadow.Init("assets/shaders/shadow.vert", "assets/shaders/shadow.frag");
 	shader_gbuffer.Init("assets/shaders/gbuffer.vert", "assets/shaders/gbuffer.frag");
-	shader_lightshaft.Init("assets/shaders/lightshaft.vert", "assets/shaders/lightshaft.frag");
 	shader_compute_scattering.Init("assets/shaders/compute_scattering.vert", "assets/shaders/compute_scattering.frag");
 	shader_add_scattering.Init("assets/shaders/add_scattering.vert", "assets/shaders/add_scattering.frag");
 	shader_particle.Init("assets/shaders/particle.vert", "assets/shaders/particle.frag");
@@ -87,8 +86,6 @@ void Window::Init()
 	glUniformBlockBinding(shader_shadow.shader_program, u_shader_shadow_ubo, 0);
 	u_shader_gbuffer_ubo = glGetUniformBlockIndex(shader_gbuffer.shader_program, "UBOData");
 	glUniformBlockBinding(shader_gbuffer.shader_program, u_shader_gbuffer_ubo, 0);
-	u_shader_lightshaft_ubo = glGetUniformBlockIndex(shader_lightshaft.shader_program, "UBOData");
-	glUniformBlockBinding(shader_lightshaft.shader_program, u_shader_lightshaft_ubo, 0);
 	u_shader_compute_scattering_ubo = glGetUniformBlockIndex(shader_compute_scattering.shader_program, "UBOData");
 	glUniformBlockBinding(shader_compute_scattering.shader_program, u_shader_compute_scattering_ubo, 0);
 	u_shader_add_scattering_ubo = glGetUniformBlockIndex(shader_add_scattering.shader_program, "UBOData");
@@ -101,9 +98,6 @@ void Window::Init()
 	u_shadow_model_matrix = glGetUniformLocation(shader_shadow.shader_program, "model_matrix");
 	u_gbuffer_texture_shadow = glGetUniformLocation(shader_gbuffer.shader_program, "shadow_sampler");
 	u_gbuffer_model_matrix = glGetUniformLocation(shader_gbuffer.shader_program, "model_matrix");
-	u_lightshaft_texture_shadow = glGetUniformLocation(shader_lightshaft.shader_program, "shadow_sampler");
-	u_lightshaft_texture_color = glGetUniformLocation(shader_lightshaft.shader_program, "color_sampler");
-	u_lightshaft_texture_position = glGetUniformLocation(shader_lightshaft.shader_program, "position_sampler");
 	u_compute_scattering_texture_shadow = glGetUniformLocation(shader_compute_scattering.shader_program, "shadow_sampler");
 	u_compute_scattering_texture_position = glGetUniformLocation(shader_compute_scattering.shader_program, "position_sampler");
 	u_compute_scattering_texture_noise = glGetUniformLocation(shader_compute_scattering.shader_program, "noise_sampler");
@@ -540,80 +534,51 @@ void Window::Update()
 	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
 
 	//Lightshaft pass
-	if (lightshaft_basic)
-	{
-		auto ls_start = std::chrono::steady_clock::now();
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
-		glUseProgram(shader_lightshaft.shader_program);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture_shadow);
-		glUniform1i(u_lightshaft_texture_shadow, 0);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, texture_color);
-		glUniform1i(u_lightshaft_texture_color, 1);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, texture_position);
-		glUniform1i(u_lightshaft_texture_position, 2);
-		glBindVertexArray(quad_vao);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);
-		glUseProgram(0);
-		glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
-		glFinish();
-		long long ls_frame_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - ls_start).count(); //ms
-		printf("%i\n", ls_frame_time_ms);
-	}
-	else
-	{
-		auto ls_start = std::chrono::steady_clock::now();
-		glViewport(0, 0, screen_width / 2, screen_height / 2);
-		glBindFramebuffer(GL_FRAMEBUFFER, fbo_scattering);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
-		glUseProgram(shader_compute_scattering.shader_program);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture_shadow);
-		glUniform1i(u_compute_scattering_texture_shadow, 0);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, texture_position);
-		glUniform1i(u_compute_scattering_texture_position, 1);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, texture_perlin_noise);
-		glUniform1i(u_compute_scattering_texture_noise, 2);
-		glBindVertexArray(quad_vao);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);
-		glUseProgram(0);
-		glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
-		glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
-		glViewport(0, 0, screen_width, screen_height);
+	auto ls_start = std::chrono::steady_clock::now();
+	glViewport(0, 0, screen_width / 2, screen_height / 2);
+	glBindFramebuffer(GL_FRAMEBUFFER, fbo_scattering);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
+	glUseProgram(shader_compute_scattering.shader_program);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture_shadow);
+	glUniform1i(u_compute_scattering_texture_shadow, 0);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, texture_position);
+	glUniform1i(u_compute_scattering_texture_position, 1);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, texture_perlin_noise);
+	glUniform1i(u_compute_scattering_texture_noise, 2);
+	glBindVertexArray(quad_vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+	glUseProgram(0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
+	glViewport(0, 0, screen_width, screen_height);
 
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
-		glUseProgram(shader_add_scattering.shader_program);
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, texture_color);
-		glUniform1i(u_add_scattering_texture_color, 0);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, texture_scattering);
-		glUniform1i(u_add_scattering_texture_scattering, 1);
-		glBindVertexArray(quad_vao);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-		glBindVertexArray(0);
-		glUseProgram(0);
-		glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
+	glUseProgram(shader_add_scattering.shader_program);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texture_color);
+	glUniform1i(u_add_scattering_texture_color, 0);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, texture_scattering);
+	glUniform1i(u_add_scattering_texture_scattering, 1);
+	glBindVertexArray(quad_vao);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, quad_ibo);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindVertexArray(0);
+	glUseProgram(0);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
 
-		glFinish();
-		long long ls_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - ls_start).count(); //ms
-		printf("Lightshaft time: %i\n", ls_time_ms);
-	}
+	glFinish();
+	long long ls_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - ls_start).count(); //ms
+	printf("Lightshaft time: %i\n", ls_time_ms);
 
 	//Particle pass
 	glClear(GL_DEPTH_BUFFER_BIT); //Only clear depth buffer as we're adding particles to the finished lightshafts
@@ -665,9 +630,6 @@ void Window::CheckForEvents()
 						break;
 					case SDLK_SPACE:
 						camera.rotate ^= 1; //XOR to switch rotate state
-						break;
-					case SDLK_l:
-						lightshaft_basic ^= 1; //XOR which lightshaft method to use
 						break;
 					case SDLK_y:
 						lights[0].position.y += 0.25f;

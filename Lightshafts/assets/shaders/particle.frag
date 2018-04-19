@@ -39,9 +39,8 @@ void main()
 	float gbuffer_min_depth = texture(position_sampler, camera_space_pos.xy).r;
 	float too_far_away = camera_space_pos.z > gbuffer_min_depth ? 1.0f : 0.0f; //If too far away then 1, else 0
 
-	color = vec4(1.0f, 1.0f, 1.0f, 0.3f - max(in_shadow, too_far_away));
+	color = vec4(ubo_data.light_color_0.xyz, 0.3f - max(in_shadow, too_far_away));
 	//color = vec4(1.0f, 0.0f, 0.0f, 1.0f - too_far_away);
 	//color = vec4(1.0f, 0.0f, 0.0f, 1.0f - in_shadow);
 	//color = vec4(1.0f, 0.0f, 0.0f, 1.0f);
-	//color = vec4( vec3( random( gl_FragCoord.xy / ubo_data.viewport.zw ) ), 1.0 );
 }

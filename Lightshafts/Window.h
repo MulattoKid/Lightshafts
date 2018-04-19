@@ -37,14 +37,13 @@ struct Window
 	bool lightshaft_basic;
 
 	//Shaders
-	Shader shader_shadow, shader_gbuffer, shader_lightshaft, shader_compute_scattering, shader_add_scattering, shader_particle;
+	Shader shader_shadow, shader_gbuffer, shader_compute_scattering, shader_add_scattering, shader_particle;
 	//UBO
 	GLuint ubo;
-	GLuint u_shader_shadow_ubo, u_shader_gbuffer_ubo, u_shader_lightshaft_ubo, u_shader_compute_scattering_ubo, u_shader_add_scattering_ubo, u_shader_particle_ubo;
+	GLuint u_shader_shadow_ubo, u_shader_gbuffer_ubo, u_shader_compute_scattering_ubo, u_shader_add_scattering_ubo, u_shader_particle_ubo;
 	//Uniforms
 	GLuint u_shadow_model_matrix;
 	GLuint u_gbuffer_texture_shadow, u_gbuffer_model_matrix;
-	GLuint u_lightshaft_texture_shadow, u_lightshaft_texture_color, u_lightshaft_texture_position;
 	GLuint u_compute_scattering_texture_shadow, u_compute_scattering_texture_position, u_compute_scattering_texture_noise;
 	GLuint u_add_scattering_texture_color, u_add_scattering_texture_scattering;
 	GLuint u_particle_texture_shadow, u_particle_texture_position, u_particle_texture_scattering, u_particle_time;

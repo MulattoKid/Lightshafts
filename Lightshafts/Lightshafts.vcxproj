@@ -46,8 +46,6 @@
     <None Include="assets\shaders\compute_scattering.vert" />
     <None Include="assets\shaders\gbuffer.frag" />
     <None Include="assets\shaders\gbuffer.vert" />
-    <None Include="assets\shaders\lightshaft.frag" />
-    <None Include="assets\shaders\lightshaft.vert" />
     <None Include="assets\shaders\particle.frag" />
     <None Include="assets\shaders\particle.vert" />
     <None Include="assets\shaders\shadow.frag" />

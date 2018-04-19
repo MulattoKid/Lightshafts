@@ -38,12 +38,6 @@
     <None Include="assets\shaders\shadow.vert">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="assets\shaders\lightshaft.vert">
-      <Filter>Shaders</Filter>
-    </None>
-    <None Include="assets\shaders\lightshaft.frag">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="assets\shaders\gbuffer.frag">
       <Filter>Shaders</Filter>
     </None>
