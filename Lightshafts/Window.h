@@ -34,7 +34,6 @@ struct Window
 
 	//Other data
 	float total_time, frame_time;
-	bool lightshaft_basic;
 
 	//Shaders
 	Shader shader_shadow, shader_gbuffer, shader_compute_scattering, shader_add_scattering, shader_particle;

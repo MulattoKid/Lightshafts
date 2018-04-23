@@ -1,5 +1,3 @@
-#pragma once
-
 #include <fstream>
 #include "OBJLoader.h"
 #include "StringUtilities.h"
@@ -187,7 +185,7 @@ int LoadOBJ(const std::string& file, Mesh* mesh, glm::vec3 color)
 		mesh->index_buffer.emplace_back(i++);
 		mesh->index_buffer.emplace_back(i++);
 	}
-	mesh->num_vertices = mesh->vertex_buffer.size();
+	mesh->num_vertices = (int)mesh->vertex_buffer.size();
 	mesh->num_indices = i;
 
 	//Bools

@@ -1,5 +1,3 @@
-#pragma once
-
 #include "StringUtilities.h"
 
 unsigned int CountNumberOfLinesStartingWith(std::ifstream& reader, const std::string seq)

@@ -33,14 +33,13 @@ void main()
     float bias = 0.001;
 	float in_shadow = light_space_pos.z - bias > light_min_depth ? 1.0f : 0.0f; //If in shadow then 1, else 0
 
-
 	//Check that this fragment is closer to the camera than that already in the Gbuffer
 	vec3 camera_space_pos = f_camera_space_position.xyz / f_camera_space_position.w;
 	camera_space_pos = camera_space_pos * 0.5f + 0.5f; //Range [-1,1] -> [0,1]
 	float gbuffer_min_depth = texture(position_sampler, camera_space_pos.xy).r;
 	float too_far_away = camera_space_pos.z > gbuffer_min_depth ? 1.0f : 0.0f; //If too far away then 1, else 0
 
-	color = vec4(1.0f, 1.0f, 1.0f, 0.3f - max(in_shadow, too_far_away));
+	color = vec4(ubo_data.light_color_0.xyz, 0.3f - max(in_shadow, too_far_away));
 	//color = vec4(1.0f, 0.0f, 0.0f, 1.0f - too_far_away);
 	//color = vec4(1.0f, 0.0f, 0.0f, 1.0f - in_shadow);
 	//color = vec4(1.0f, 0.0f, 0.0f, 1.0f);

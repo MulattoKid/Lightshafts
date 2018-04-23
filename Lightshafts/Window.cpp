@@ -1,6 +1,7 @@
 #include <cstring>
 #include "GLUtilities.h"
 #include "glm/gtc/matrix_transform.hpp"
+#include <omp.h>
 #include "Particle.h"
 #include <time.h>
 #include "Window.h"
@@ -383,7 +384,6 @@ void Window::Init()
 	glReadBuffer(GL_NONE);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
-	lightshaft_basic = false; //If true ->lightshafts are slow
 
 	//Noise textures
 	LoadTexture("assets/textures/perlin_noise.png", 4, false, GL_LINEAR, GL_LINEAR, GL_REPEAT, GL_REPEAT, &texture_perlin_noise);
@@ -416,7 +416,7 @@ void Window::Update()
 		//General stuff
 		GLint viewport[4];
 		glGetIntegerv(GL_VIEWPORT, viewport);
-		float viewportf[4] = { viewport[0], viewport[1], viewport[2], viewport[3] };
+		float viewportf[4] = { (float)viewport[0], (float)viewport[1], (float)viewport[2], (float)viewport[3] };
 		memcpy(&ptr->viewport, &viewportf[0], 4 * sizeof(float));
 		memcpy(&ptr->camera_vp, &camera_vp[0][0], 16 * sizeof(float));
 		memcpy(&ptr->camera_to_world, &glm::inverse(camera_view_matrix)[0][0], 16 * sizeof(float));
@@ -432,11 +432,12 @@ void Window::Update()
 	}
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 	//Update particles
+	auto particle_update_start = std::chrono::steady_clock::now();
 	glBindBuffer(GL_ARRAY_BUFFER, particle_centers_vbo);
 	Particle* particle_ptr = (Particle*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 	if (particle_ptr)
 	{
-		for (int z = -15; z < 15; z++)
+		/*for (int z = -15; z < 15; z++)
 		{
 			for (int y = -3; y < 15; y++)
 			{
@@ -458,15 +459,34 @@ void Window::Update()
 					}
 				}
 			}
+		}*/
+		int range = num_particles_z * num_particles_y * num_particles_x;
+#pragma omp parallel for
+		for (int i = 0; i < range; i++)
+		{
+			glm::vec3 position_offset = glm::vec3(particle_ptr[i].model_matrix * glm::vec4(1.0f)) * (frame_time * 0.1f); //Decrease movement by a factor of 0.1
+			particle_ptr[i].position += position_offset;
+			if (particle_ptr[i].position.x < -15.0f || particle_ptr[i].position.x > 15.0f ||
+				particle_ptr[i].position.y < -3.0f || particle_ptr[i].position.y > 15.0f ||
+				particle_ptr[i].position.z < -15.0f || particle_ptr[i].position.z > 15.0f)
+			{
+				float random_x = float(rand() % 31 - 15); //[-15,15]
+				float random_y = float(rand() % 19 - 3);  //[-3,15]
+				float random_z = float(rand() % 31 - 15); //[-15,15]
+				particle_ptr[i].position = glm::vec3(random_x, random_y, random_z);
+			}
 		}
 		glUnmapBuffer(GL_ARRAY_BUFFER);
 	}
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0); 
+	glFinish();
+	long long particle_update_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - particle_update_start).count(); //ms
 
 	////////////////////////////////////////
 	///////////////RENDER///////////////////
 	////////////////////////////////////////
 	//Shadow pass
+	auto shadow_map_start = std::chrono::steady_clock::now();
 	glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_shadow);
 	glClear(GL_DEPTH_BUFFER_BIT);
@@ -488,18 +508,21 @@ void Window::Update()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, alucy_ibo);
 	glUniformMatrix4fv(u_shadow_model_matrix, 1, GL_FALSE, &alucy_model_matrix[0][0]);
 	glDrawElements(GL_TRIANGLES, alucy.num_indices, GL_UNSIGNED_INT, 0);
-	/*glBindVertexArray(cube_vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube_ibo);
-	glUniformMatrix4fv(u_shadow_model_matrix, 1, GL_FALSE, &cube_model_matrix[0][0]);
-	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);*/
+	//glBindVertexArray(cube_vao);
+	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube_ibo);
+	//glUniformMatrix4fv(u_shadow_model_matrix, 1, GL_FALSE, &cube_model_matrix[0][0]);
+	//glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 	glUseProgram(0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
 	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
 	glViewport(0, 0, screen_width, screen_height);
+	glFinish();
+	long long shadow_map_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - shadow_map_start).count(); //ms
 
 	//GBuffer
+	auto gbuffer_start = std::chrono::steady_clock::now();
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo_gbuffer);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
@@ -523,15 +546,17 @@ void Window::Update()
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, alucy_ibo);
 	glUniformMatrix4fv(u_gbuffer_model_matrix, 1, GL_FALSE, &alucy_model_matrix[0][0]);
 	glDrawElements(GL_TRIANGLES, alucy.num_indices, GL_UNSIGNED_INT, 0);
-	/*glBindVertexArray(cube_vao);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube_ibo);
-	glUniformMatrix4fv(u_gbuffer_model_matrix, 1, GL_FALSE, &cube_model_matrix[0][0]);
-	glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);*/
+	//glBindVertexArray(cube_vao);
+	//glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, cube_ibo);
+	//glUniformMatrix4fv(u_gbuffer_model_matrix, 1, GL_FALSE, &cube_model_matrix[0][0]);
+	//glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindVertexArray(0);
 	glUseProgram(0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
 	glBindFramebuffer(GL_FRAMEBUFFER, DEFAULT_FRAMEBUFFER);
+	glFinish();
+	long long gbuffer_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - gbuffer_start).count(); //ms
 
 	//Lightshaft pass
 	auto ls_start = std::chrono::steady_clock::now();
@@ -578,9 +603,9 @@ void Window::Update()
 
 	glFinish();
 	long long ls_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - ls_start).count(); //ms
-	printf("Lightshaft time: %i\n", ls_time_ms);
 
 	//Particle pass
+	auto particle_start = std::chrono::steady_clock::now();
 	glClear(GL_DEPTH_BUFFER_BIT); //Only clear depth buffer as we're adding particles to the finished lightshafts
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, ubo);
 	glUseProgram(shader_particle.shader_program);
@@ -601,12 +626,20 @@ void Window::Update()
 	glBindVertexArray(0);
 	glUseProgram(0);
 	glBindBufferBase(GL_UNIFORM_BUFFER, 0, 0);
-
 	glFinish();
+	long long particle_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - particle_start).count(); //ms
+
+	//Frame time
 	long long frame_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - frame_start).count(); //ms
 	frame_time = float(frame_time_ms) / 1000.0f;
 	total_time += frame_time;
-	printf("Frame time: %i\n", frame_time_ms);
+	//Print timings
+	printf("Frame time: %I64d\n", frame_time_ms);
+	printf("\tParticle update time: %I64d\n", particle_update_time_ms);
+	printf("\tShadow map time: %I64d\n", shadow_map_time_ms);
+	printf("\tGBuffer time: %I64d\n", gbuffer_time_ms);
+	printf("\tLightshaft time: %I64d\n", ls_time_ms);
+	printf("\tParticle time: %I64d\n", particle_time_ms);
 
 	SDL_GL_SwapWindow(window);
 }
