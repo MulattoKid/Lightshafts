@@ -1,7 +1,7 @@
 # Lightshafts
 This is what I created as my final project in TDT4230 (Graphics and Visualization) at NTNU.
 
-The work of (Alexandre Pestana)[http://www.alexandre-pestana.com/volumetric-lights/] and (Benjamin Glatzel)[https://www.slideshare.net/BenjaminGlatzel/volumetric-lighting-for-many-lights-in-lords-of-the-fallen] were of huge help as they gave helped me understand the basic concept as well some neat techniques for improving performance without losing too much quality.
+The work of [Alexandre Pestana](http://www.alexandre-pestana.com/volumetric-lights/) and [Benjamin Glatzel](https://www.slideshare.net/BenjaminGlatzel/volumetric-lighting-for-many-lights-in-lords-of-the-fallen) were of huge help as they gave helped me understand the basic concept as well some neat techniques for improving performance without losing too much quality.
 
 ![](https://i.imgur.com/SkOWMLh.png)
 
